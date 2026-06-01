@@ -174,9 +174,19 @@ python3 nodes/mock_node.py
 
 ---
 
-## Legal
+## Legal Notice
 
-For use only on networks you own or have explicit written authorization to monitor. Passive monitoring only — node-sentry never injects frames.
+NodeSentry is intended strictly for use on networks you own or have received
+explicit written authorization to monitor. Passive monitoring of wireless traffic
+on networks without authorization is illegal in most jurisdictions, including
+Kosovo's Law No. 06/L-082 on Cybercrime.
+
+This tool operates in passive monitor mode only, it never injects frames,
+sends deauthentication packets, or actively interferes with any network or device.
+All development and testing was conducted exclusively on the author's own
+private network.
+
+The author assumes no responsibility for misuse of this software.
 
 ---
 

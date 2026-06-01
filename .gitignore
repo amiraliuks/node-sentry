@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flask
+instance/
+
+# Baseline / runtime files
+baseline.json

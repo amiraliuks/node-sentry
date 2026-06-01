@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NodeSentry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">NodeSentry</span>
+    </div>
+
+    <nav class="nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <span class="nav-icon">▦</span> Dashboard
+      </a>
+      <a href="#" class="nav-item" data-section="alerts">
+        <span class="nav-icon">⚑</span> Alerts
+      </a>
+      <a href="#" class="nav-item" data-section="nodes">
+        <span class="nav-icon">◎</span> Nodes
+      </a>
+      <a href="#" class="nav-item" data-section="probes">
+        <span class="nav-icon">⊹</span> Probe Log
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-dot" id="conn-dot"></div>
+      <span id="conn-label">Connecting...</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Header -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="page-title">Dashboard</h1>
+        <span class="page-sub" id="current-time"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="badge" id="total-alerts-badge">0 alerts</div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD SECTION -->
+    <section class="section active" id="section-dashboard">
+
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Alerts</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-sub">since start</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-label">Deauth Floods</div>
+          <div class="stat-value" id="stat-deauth">0</div>
+          <div class="stat-sub">detected</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Evil Twins</div>
+          <div class="stat-value" id="stat-eviltwin">0</div>
+          <div class="stat-sub">detected</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">Probe Requests</div>
+          <div class="stat-value" id="stat-probe">0</div>
+          <div class="stat-sub">logged</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Karma Attacks</div>
+          <div class="stat-value" id="stat-karma">0</div>
+          <div class="stat-sub">detected</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">Active Nodes</div>
+          <div class="stat-value" id="stat-nodes">0</div>
+          <div class="stat-sub">online</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-header">Alert Types</div>
+          <canvas id="chart-types"></canvas>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header">Alerts Over Time</div>
+          <canvas id="chart-timeline"></canvas>
+        </div>
+      </div>
+
+      <!-- Recent alerts -->
+      <div class="card">
+        <div class="card-header">Recent Alerts</div>
+        <table class="alert-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Node</th>
+              <th>Type</th>
+              <th>MAC</th>
+              <th>SSID</th>
+              <th>RSSI</th>
+            </tr>
+          </thead>
+          <tbody id="recent-alerts-body">
+            <tr class="empty-row"><td colspan="6">Waiting for alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- ALERTS SECTION -->
+    <section class="section" id="section-alerts">
+      <div class="card">
+        <div class="card-header">
+          All Alerts
+          <button class="btn-clear" id="btn-clear-alerts">Clear</button>
+        </div>
+        <table class="alert-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Node</th>
+              <th>Type</th>
+              <th>MAC</th>
+              <th>SSID</th>
+              <th>RSSI</th>
+            </tr>
+          </thead>
+          <tbody id="all-alerts-body">
+            <tr class="empty-row"><td colspan="6">No alerts yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NODES SECTION -->
+    <section class="section" id="section-nodes">
+      <div class="card">
+        <div class="card-header">Node Status</div>
+        <div id="nodes-grid" class="nodes-grid">
+          <p class="empty-msg">No nodes connected yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROBE LOG SECTION -->
+    <section class="section" id="section-probes">
+      <div class="card">
+        <div class="card-header">Probe Request Log</div>
+        <table class="alert-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Node</th>
+              <th>MAC</th>
+              <th>Hunting for SSID</th>
+              <th>RSSI</th>
+            </tr>
+          </thead>
+          <tbody id="probe-body">
+            <tr class="empty-row"><td colspan="5">No probe requests logged yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

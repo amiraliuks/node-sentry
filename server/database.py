@@ -177,3 +177,19 @@ def get_nodes():
             ) latest ON s.node = latest.node AND s.timestamp = latest.latest
         """).fetchall()
     return [dict(r) for r in rows]
+
+
+# OUI Lookup
+def get_vendor(mac: str) -> str | None:
+    """Look up MAC vendor from the OUI table. Returns None if not found."""
+    if not mac or len(mac) < 8:
+        return None
+    prefix = mac.upper()[:8]
+    try:
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT vendor FROM oui WHERE prefix = ?", (prefix,)
+            ).fetchone()
+        return row["vendor"] if row else None
+    except Exception:
+        return None

@@ -2,35 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const socket = io();
 
-// OUI Vendor lookup (partial table, most common prefixes)
-const OUI = {
-  "00:50:56": "VMware",     "00:0C:29": "VMware",
-  "B8:27:EB": "Raspberry",  "DC:A6:32": "Raspberry",  "E4:5F:01": "Raspberry",
-  "AC:BC:32": "Apple",      "F0:18:98": "Apple",       "A4:C3:F0": "Apple",
-  "3C:22:FB": "Apple",      "00:17:F2": "Apple",       "F4:5C:89": "Apple",
-  "CC:46:D6": "Apple",      "A8:51:AB": "Apple",       "70:56:81": "Apple",
-  "18:65:90": "Apple",      "D0:03:4B": "Apple",
-  "AA:BB:CC": "Unknown",
-  "24:0A:C4": "Espressif",  "30:AE:A4": "Espressif",  "A0:20:A6": "Espressif",
-  "84:F3:EB": "Espressif",  "E8:DB:84": "Espressif",  "EC:FA:BC": "Espressif",
-  "FC:F5:C4": "Espressif",  "10:52:1C": "Espressif",
-  "00:16:3E": "Samsung",    "8C:77:12": "Samsung",     "E4:92:FB": "Samsung",
-  "F4:7B:5E": "Samsung",    "00:15:99": "Samsung",
-  "00:0F:00": "Motorola",   "CC:88:26": "Huawei",      "00:E0:FC": "Huawei",
-  "28:6E:D4": "Intel",      "00:1B:21": "Intel",       "F8:16:54": "Intel",
-  "DE:AD:BE": "Test",       "CA:FE:BA": "Test",        "11:22:33": "Test",
-};
-
-function getVendor(mac) {
-  if (!mac) return null;
-  const prefix = mac.substring(0, 8).toUpperCase();
-  return OUI[prefix] || null;
-}
-
-function fmtMac(mac) {
+// MAC formatter — vendor comes from backend (full IEEE OUI database)
+function fmtMac(mac, vendor) {
   if (!mac) return '—';
-  const vendor = getVendor(mac);
-  return vendor ? `${mac} <span style="color:var(--text-sub);font-size:11px">[${vendor}]</span>` : mac;
+  return vendor
+    ? `${mac} <span style="color:var(--text-sub);font-size:11px">[${vendor}]</span>`
+    : mac;
 }
 
 // RSSI formatter
@@ -123,7 +100,7 @@ const timelineChart = new Chart(document.getElementById('chart-timeline'), {
         ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
         grid: { color: '#1c2030' },
         beginAtZero: true,
-        suggestedMax: 5, // dynamic — chart will expand beyond this automatically
+        suggestedMax: 5, // dynamic, chart will expand beyond this automatically
       },
     }
   }
@@ -160,7 +137,7 @@ function renderRecentAlerts() {
       <td>${fmtTime(a.timestamp)}</td>
       <td>${a.node}</td>
       <td>${typeBadge(a.type)}</td>
-      <td>${fmtMac(a.mac)}</td>
+      <td>${fmtMac(a.mac, a.vendor)}</td>
       <td>${a.ssid || '—'}</td>
       <td>${fmtRssi(a.rssi)}</td>
     </tr>`).join('');
@@ -178,7 +155,7 @@ function renderAllAlerts() {
       <td>${fmtTime(a.timestamp)}</td>
       <td>${a.node}</td>
       <td>${typeBadge(a.type)}</td>
-      <td>${fmtMac(a.mac)}</td>
+      <td>${fmtMac(a.mac, a.vendor)}</td>
       <td>${a.ssid || '—'}</td>
       <td>${fmtRssi(a.rssi)}</td>
     </tr>`).join('');
@@ -195,7 +172,7 @@ function renderProbes() {
     <tr>
       <td>${fmtTime(p.timestamp)}</td>
       <td>${p.node}</td>
-      <td>${fmtMac(p.mac)}</td>
+      <td>${fmtMac(p.mac, p.vendor)}</td>
       <td>${p.ssid || '(hidden)'}</td>
       <td>${fmtRssi(p.rssi)}</td>
     </tr>`).join('');
@@ -317,4 +294,4 @@ async function loadFromDB() {
 
 loadFromDB();
 
-});
+}); // end DOMContentLoaded

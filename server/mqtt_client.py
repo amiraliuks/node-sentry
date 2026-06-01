@@ -2,7 +2,6 @@ import json
 import paho.mqtt.client as mqtt
 import os
 
-
 class MQTTClient:
     def __init__(self, broker: str, port: int, on_alert, on_stats):
         """

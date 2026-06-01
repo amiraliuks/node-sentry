@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from functools import wraps
 import os
 
-from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes
+from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor
 from mqtt_client import MQTTClient
 
 load_dotenv()
@@ -43,7 +43,7 @@ def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not API_KEY:
-            # No key configured — open access (dev mode)
+            # No key configured (open access if in dev mode)
             return f(*args, **kwargs)
         key = request.headers.get("X-API-Key") or request.args.get("api_key")
         if key != API_KEY:
@@ -69,6 +69,7 @@ def server_error(e):
 # MQTT callbacks
 def on_alert(payload):
     insert_alert(payload)
+    payload["vendor"] = get_vendor(payload.get("mac"))
     socketio.emit("alert", payload)
 
 def on_stats(payload):
@@ -79,7 +80,7 @@ def on_stats(payload):
 # Routes
 @app.route("/")
 def index():
-    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
+    return render_template("index.html")
 
 @app.route("/api/alerts")
 @require_api_key

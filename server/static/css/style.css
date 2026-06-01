@@ -24,7 +24,7 @@ html, body {
   font-size: 14px;
 }
 
-/* ── Layout ── */
+/* Layout */
 body { display: flex; }
 
 .sidebar {
@@ -48,7 +48,7 @@ body { display: flex; }
   overflow-y: auto;
 }
 
-/* ── Logo ── */
+/* Logo */
 .logo {
   display: flex;
   align-items: center;
@@ -60,7 +60,7 @@ body { display: flex; }
 .logo-icon { font-size: 20px; color: var(--accent); }
 .logo-text  { font-family: var(--font-mono); font-weight: 600; font-size: 15px; letter-spacing: 0.04em; }
 
-/* ── Nav ── */
+/* Nav */
 .nav { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
 .nav-item {
   display: flex;
@@ -98,7 +98,7 @@ body { display: flex; }
 .status-dot.connected    { background: var(--success); box-shadow: 0 0 6px var(--success); }
 .status-dot.disconnected { background: var(--danger); }
 
-/* ── Topbar ── */
+/* Topbar */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -117,7 +117,7 @@ body { display: flex; }
   color: var(--text-sub);
 }
 
-/* ── Stat Grid ── */
+/* Stat Grid */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -147,7 +147,7 @@ body { display: flex; }
 .stat-value { font-family: var(--font-mono); font-size: 32px; font-weight: 600; line-height: 1; }
 .stat-sub   { font-size: 11px; color: var(--text-sub); margin-top: 6px; }
 
-/* ── Charts ── */
+/* Charts */
 .charts-row {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -157,7 +157,7 @@ body { display: flex; }
 .chart-card { padding: 20px; }
 .chart-card canvas { max-height: 220px; }
 
-/* ── Card ── */
+/* Card */
 .card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -176,7 +176,7 @@ body { display: flex; }
   align-items: center;
 }
 
-/* ── Table ── */
+/* Table */
 .alert-table {
   width: 100%;
   border-collapse: collapse;

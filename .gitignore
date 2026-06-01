@@ -26,3 +26,5 @@ instance/
 
 # Baseline / runtime files
 baseline.json
+server/nodesentry.db-shm
+server/nodesentry.db-wal

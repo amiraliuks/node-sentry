@@ -247,7 +247,7 @@ async function loadFromDB() {
       fetch('/api/nodes'),
     ]);
 
-    const alerts = await alertsRes.json();
+    const { alerts } = await alertsRes.json();
     const stats  = await statsRes.json();
     const nodes  = await nodesRes.json();
 

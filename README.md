@@ -68,10 +68,10 @@ A distributed embedded Wi-Fi security monitoring platform. node-sentry deploys W
 
 ## Detection Capabilities
 
-- **Deauth flood detection** — counts deauthentication frames per source MAC in a sliding time window
-- **Probe request logging** — logs every device hunting for saved networks (MAC, SSID, RSSI, timestamp)
-- **Evil twin AP detection** — flags new BSSIDs broadcasting a known SSID
-- **Karma attack detection** — flags devices responding to probe requests for SSIDs they never beaconed
+- **Deauth flood detection** - counts deauthentication frames per source MAC in a sliding time window
+- **Probe request logging** - logs every device hunting for saved networks (MAC, SSID, RSSI, timestamp)
+- **Evil twin AP detection** - flags new BSSIDs broadcasting a known SSID
+- **Karma attack detection** - flags devices responding to probe requests for SSIDs they never beaconed
 
 ---
 
@@ -166,11 +166,11 @@ python3 nodes/mock_node.py
 ## Roadmap
 
 - [x] Project architecture
-- [ ] Phase 1 — single node firmware (probe logging + deauth detection)
-- [ ] Phase 2 — Flask backend + MQTT pipeline
-- [ ] Phase 3 — live dashboard
-- [ ] Phase 4 — multi-node support
-- [ ] Phase 5 — OTA firmware updates
+- [ ] Phase 1 - single node firmware (probe logging + deauth detection)
+- [ ] Phase 2 - Flask backend + MQTT pipeline
+- [ ] Phase 3 - live dashboard
+- [ ] Phase 4 - multi-node support
+- [ ] Phase 5 - OTA firmware updates
 
 ---
 

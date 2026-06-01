@@ -192,4 +192,4 @@ The author assumes no responsibility for misuse of this software.
 
 ## Inspiration
 
-[Satur8](https://github.com/dionmulaj/Satur8) by dionmulaj, a Python-based passive Wi-Fi monitoring framework. node-sentry takes a different approach: distributed embedded nodes on constrained ESP8266 hardware reporting to a central server.
+[Satur8](https://github.com/dionmulaj/Satur8), a Python-based passive Wi-Fi monitoring framework. node-sentry takes a different approach: distributed embedded nodes on constrained ESP8266 hardware reporting to a central server.

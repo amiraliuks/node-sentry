@@ -79,7 +79,7 @@ def on_stats(payload):
 # Routes
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
 
 @app.route("/api/alerts")
 @require_api_key

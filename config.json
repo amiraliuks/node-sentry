@@ -1,0 +1,19 @@
+{
+  "notifications": {
+    "discord": {
+      "enabled": true,
+      "webhook_url": "https://discord.com/api/webhooks/1511102147784081508/5nk_0C0ln087YaJHIoLkixTgi8WMxxnapwIM9N1aaX7Qg0nBNtQ_fr1vy0osAXHI-t9B"
+    },
+    "telegram": {
+      "bot_token": "8971838773:AAHX4d2wALsV-WRCB6TXBOYYR4TqhYv5sOA",
+      "chat_id": "6136658354",
+      "enabled": false
+    }
+  },
+  "thresholds": {
+    "cooldown_seconds": 300,
+    "deauth_count": 5,
+    "deauth_window_seconds": 60
+  },
+  "whitelist": []
+}

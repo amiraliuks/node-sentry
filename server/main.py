@@ -3,23 +3,23 @@ from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_cors import CORS
 from dotenv import load_dotenv
 from functools import wraps
 import os
 
 from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor
 from mqtt_client import MQTTClient
+import config as cfg_module
+import notifier
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "change-me-in-production")
 
-# CORS (localhost only)
-from flask_cors import CORS
 CORS(app, origins=["http://localhost:5000", "http://127.0.0.1:5000"])
 
-# Rate limiter
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -27,7 +27,6 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-# SocketIO
 socketio = SocketIO(app, cors_allowed_origins=[
     "http://localhost:5000",
     "http://127.0.0.1:5000",
@@ -38,12 +37,10 @@ PORT    = int(os.getenv("MQTT_PORT", 1883))
 API_KEY = os.getenv("API_KEY", "")
 
 
-# Auth decorator
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not API_KEY:
-            # No key configured (open access if in dev mode)
             return f(*args, **kwargs)
         key = request.headers.get("X-API-Key") or request.args.get("api_key")
         if key != API_KEY:
@@ -52,7 +49,6 @@ def require_api_key(f):
     return decorated
 
 
-# Error handlers
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"error": "Not found"}), 404
@@ -66,10 +62,10 @@ def server_error(e):
     return jsonify({"error": "Internal server error"}), 500
 
 
-# MQTT callbacks
 def on_alert(payload):
     insert_alert(payload)
     payload["vendor"] = get_vendor(payload.get("mac"))
+    notifier.process(payload)
     socketio.emit("alert", payload)
 
 def on_stats(payload):
@@ -77,10 +73,9 @@ def on_stats(payload):
     socketio.emit("stats", payload)
 
 
-# Routes
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
 
 @app.route("/api/alerts")
 @require_api_key
@@ -104,8 +99,41 @@ def api_stats():
 def api_nodes():
     return jsonify(get_nodes())
 
+@app.route("/api/config", methods=["GET"])
+@require_api_key
+@limiter.limit("30 per minute")
+def api_config_get():
+    return jsonify(cfg_module.load())
 
-# Start
+@app.route("/api/config", methods=["POST"])
+@require_api_key
+@limiter.limit("10 per minute")
+def api_config_post():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    ok = cfg_module.save(data)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"error": "Failed to save config"}), 500
+
+@app.route("/api/config/test/telegram", methods=["POST"])
+@require_api_key
+@limiter.limit("5 per minute")
+def api_test_telegram():
+    conf = cfg_module.load()
+    ok   = notifier.test_telegram(conf["notifications"]["telegram"])
+    return jsonify({"success": ok})
+
+@app.route("/api/config/test/discord", methods=["POST"])
+@require_api_key
+@limiter.limit("5 per minute")
+def api_test_discord():
+    conf = cfg_module.load()
+    ok   = notifier.test_discord(conf["notifications"]["discord"])
+    return jsonify({"success": ok})
+
+
 if __name__ == "__main__":
     init_db()
 

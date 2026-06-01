@@ -251,3 +251,8 @@ body { display: flex; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* RSSI color coding */
+.rssi-close  { color: #22c55e; font-weight: 500; } /* -30 to -55 dBm */
+.rssi-medium { color: #f59e0b; }                   /* -56 to -75 dBm */
+.rssi-far    { color: #64748b; }                   /* -76 to -90 dBm */

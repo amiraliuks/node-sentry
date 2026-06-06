@@ -93,11 +93,18 @@ def nodes():
 
 @app.route("/probes")
 def probes():
-    return render_template("probes.html", active="probes", page_title="Probe Log", **ctx())
+    return render_template("probes.html", active="probe", page_title="Probe Log", **ctx())
 
 @app.route("/settings")
 def settings():
     return render_template("settings.html", active="settings", page_title="Settings", **ctx())
+
+@app.route("/devices")
+def devices():
+    return render_template("devices.html", active="devices", page_title="Devices", **ctx())
+
+
+# --- API Endpoints ---
 
 @app.route("/api/alerts")
 @require_api_key
@@ -128,10 +135,6 @@ def api_devices():
     limit = request.args.get("limit", 200, type=int)
     page  = request.args.get("page", 1, type=int)
     return jsonify(get_devices(limit=limit, page=page))
-
-@app.route("/devices")
-def devices():
-    return render_template("devices.html", active="devices", page_title="Devices", **ctx())
 
 @app.route("/api/config", methods=["GET"])
 @require_api_key
@@ -167,6 +170,131 @@ def api_test_discord():
     ok   = notifier.test_discord(conf["notifications"]["discord"])
     return jsonify({"success": ok})
 
+
+# --- OpenAPI Documentation Endpoints ---
+
+@app.route("/api/docs")
+def api_docs():
+    return render_template("api_docs.html", api_key=os.getenv("API_KEY", ""))
+
+@app.route("/api/openapi.json")
+def openapi_spec():
+    spec = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "NodeSentry API",
+            "version": "1.0.0",
+            "description": "REST API for the NodeSentry distributed Wi-Fi security monitoring platform."
+        },
+        "servers": [{"url": "http://localhost:5000"}],
+        "components": {
+            "securitySchemes": {
+                "ApiKeyAuth": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-API-Key"
+                }
+            }
+        },
+        "security": [{"ApiKeyAuth": []}],
+        "paths": {
+            "/api/alerts": {
+                "get": {
+                    "summary": "List alerts",
+                    "description": "Returns paginated alert log with optional filtering.",
+                    "parameters": [
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50, "maximum": 500}, "description": "Results per page"},
+                        {"name": "page",  "in": "query", "schema": {"type": "integer", "default": 1}, "description": "Page number"},
+                        {"name": "type",  "in": "query", "schema": {"type": "string", "enum": ["deauth", "deauth_flood", "evil_twin", "karma", "probe"]}, "description": "Filter by alert type"},
+                        {"name": "node",  "in": "query", "schema": {"type": "string"}, "description": "Filter by node ID"},
+                    ],
+                    "responses": {
+                        "200": {"description": "Paginated alert list"},
+                        "401": {"description": "Invalid or missing API key"},
+                        "429": {"description": "Rate limit exceeded"}
+                    }
+                }
+            },
+            "/api/stats": {
+                "get": {
+                    "summary": "Alert counts by type",
+                    "description": "Returns total alert count broken down by type.",
+                    "responses": {
+                        "200": {"description": "Alert counts"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            },
+            "/api/nodes": {
+                "get": {
+                    "summary": "Node status",
+                    "description": "Returns latest stats snapshot for each connected node.",
+                    "responses": {
+                        "200": {"description": "Node list"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            },
+            "/api/devices": {
+                "get": {
+                    "summary": "Tracked devices",
+                    "description": "Returns all devices tracked by MAC address with first/last seen, alert counts and SSID history.",
+                    "parameters": [
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 200}},
+                        {"name": "page",  "in": "query", "schema": {"type": "integer", "default": 1}},
+                    ],
+                    "responses": {
+                        "200": {"description": "Device list"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            },
+            "/api/config": {
+                "get": {
+                    "summary": "Get configuration",
+                    "description": "Returns current NodeSentry configuration including notification settings and thresholds.",
+                    "responses": {
+                        "200": {"description": "Configuration object"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                },
+                "post": {
+                    "summary": "Update configuration",
+                    "description": "Saves updated configuration to config.json.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"type": "object"}}}
+                    },
+                    "responses": {
+                        "200": {"description": "Success"},
+                        "400": {"description": "Invalid JSON"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            },
+            "/api/config/test/telegram": {
+                "post": {
+                    "summary": "Test Telegram notification",
+                    "description": "Sends a test message to verify Telegram bot configuration.",
+                    "responses": {
+                        "200": {"description": "Result"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            },
+            "/api/config/test/discord": {
+                "post": {
+                    "summary": "Test Discord notification",
+                    "description": "Sends a test embed to verify Discord webhook configuration.",
+                    "responses": {
+                        "200": {"description": "Result"},
+                        "401": {"description": "Unauthorized"}
+                    }
+                }
+            }
+        }
+    }
+    return jsonify(spec)
 
 if __name__ == "__main__":
     init_db()

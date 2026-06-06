@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css">
+  <style>
+    .swagger-ui { font-family: var(--font) !important; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info { margin: 0 0 20px; }
+    .swagger-ui .info .title { color: var(--text); }
+    .swagger-ui .scheme-container { background: var(--bg2); padding: 12px 16px; border-radius: 4px; box-shadow: none; }
+    .swagger-ui .opblock { border-radius: 4px; border-color: var(--border); margin-bottom: 8px; }
+    .swagger-ui .opblock-summary { border-radius: 4px; }
+    .swagger-ui input[type=text] { background: var(--bg3); color: var(--text); border-color: var(--border2); border-radius: 4px; }
+    .swagger-ui textarea { background: var(--bg3); color: var(--text); }
+    .swagger-ui select { background: var(--bg3); color: var(--text); }
+    .swagger-ui .btn { border-radius: 4px; }
+    .swagger-ui .response-col_status { color: var(--text); }
+    .swagger-ui table thead tr th { color: var(--text-sub); border-color: var(--border); }
+    .swagger-ui .parameter__name { color: var(--text); }
+    .swagger-ui .parameter__type { color: var(--text-sub); }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="swagger-ui"></div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/api/openapi.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'BaseLayout',
+      deepLinking: true,
+      requestInterceptor: (req) => {
+        req.headers['X-API-Key'] = '{{ api_key }}';
+        return req;
+      }
+    });
+  </script>
+{% endblock %}

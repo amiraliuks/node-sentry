@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let devices = [];
 
   function fmtDate(ts) {
-    if (!ts) return '—';
+    if (!ts) return '-';
     return new Date(ts * 1000).toLocaleString();
   }
 
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="color:var(--text-sub)">${fmtDate(d.first_seen)}</td>
         <td style="color:var(--text-sub)">${fmtDate(d.last_seen)}</td>
         <td><span style="font-family:var(--font-mono);font-weight:600">${d.alert_count}</span></td>
-        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.join(', ') : '—'}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.join(', ') : '-'}</td>
         <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.nodes.join(', ')}</td>
         <td>${fmtAlertTypes(d.alert_types)}</td>
       </tr>`).join('');

@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'POST', headers: { 'X-API-Key': API_KEY },
       });
       const data = await res.json();
-      result.textContent = data.success ? 'Message sent!' : 'Failed — check token and chat ID.';
+      result.textContent = data.success ? 'Message sent!' : 'Failed - check token and chat ID.';
       if (!data.success) result.className = 'test-result error';
     } catch (e) {
       result.className   = 'test-result error';
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'POST', headers: { 'X-API-Key': API_KEY },
       });
       const data = await res.json();
-      result.textContent = data.success ? 'Message sent!' : 'Failed — check webhook URL.';
+      result.textContent = data.success ? 'Message sent!' : 'Failed - check webhook URL.';
       if (!data.success) result.className = 'test-result error';
     } catch (e) {
       result.className   = 'test-result error';

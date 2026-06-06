@@ -1,4 +1,5 @@
 import sqlite3
+import time
 import json
 import os
 from contextlib import contextmanager
@@ -6,7 +7,7 @@ from threading import local
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "nodesentry.db")
 
-# Thread-local connection pool
+# ── Thread-local connection pool ──
 _local = local()
 
 def _get_conn():
@@ -29,7 +30,7 @@ def get_conn():
         raise
 
 
-# Init
+# ── Init ──
 def init_db():
     with get_conn() as conn:
         conn.execute("""
@@ -62,7 +63,7 @@ def init_db():
     print("[DB] Database initialized.")
 
 
-# Validation
+# ── Validation ──
 VALID_TYPES = {"deauth", "probe", "evil_twin", "karma"}
 MAX_LIMIT   = 500
 
@@ -82,7 +83,7 @@ def _validate_node(node: str | None) -> str | None:
     return node
 
 
-# Writes
+# ── Writes ──
 def insert_alert(payload: dict):
     known = {"node", "type", "mac", "ssid", "rssi", "timestamp"}
     extra = {k: v for k, v in payload.items() if k not in known}
@@ -116,7 +117,7 @@ def insert_stats(payload: dict):
         ))
 
 
-# Reads
+# ── Reads ──
 def get_alerts(limit=50, page=1, alert_type=None, node=None):
     limit      = _validate_limit(limit)
     page       = max(1, page)
@@ -179,7 +180,7 @@ def get_nodes():
     return [dict(r) for r in rows]
 
 
-# OUI Lookup
+# ── OUI Lookup ──
 def get_vendor(mac: str) -> str | None:
     """Look up MAC vendor from the OUI table. Returns None if not found."""
     if not mac or len(mac) < 8:
@@ -193,3 +194,92 @@ def get_vendor(mac: str) -> str | None:
         return row["vendor"] if row else None
     except Exception:
         return None
+
+
+# Device tracking
+
+def init_devices_table():
+    with get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS devices (
+                mac           TEXT PRIMARY KEY,
+                vendor        TEXT,
+                first_seen    INTEGER NOT NULL,
+                last_seen     INTEGER NOT NULL,
+                alert_count   INTEGER DEFAULT 0,
+                ssids         TEXT DEFAULT '[]',
+                nodes         TEXT DEFAULT '[]',
+                alert_types   TEXT DEFAULT '{}'
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen)")
+
+
+def upsert_device(payload: dict):
+    import json as _json
+    mac    = payload.get("mac")
+    if not mac:
+        return
+    vendor = payload.get("vendor")
+    ts     = payload.get("timestamp", int(time.time()))
+    ssid   = payload.get("ssid")
+    node   = payload.get("node", "unknown")
+    atype  = payload.get("type", "unknown")
+
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM devices WHERE mac = ?", (mac,)).fetchone()
+        if row:
+            row    = dict(row)
+            ssids  = _json.loads(row["ssids"])
+            nodes  = _json.loads(row["nodes"])
+            atypes = _json.loads(row["alert_types"])
+            if ssid and ssid not in ssids:
+                ssids.append(ssid)
+            if node not in nodes:
+                nodes.append(node)
+            atypes[atype] = atypes.get(atype, 0) + 1
+            conn.execute("""
+                UPDATE devices
+                SET last_seen=?, alert_count=alert_count+1,
+                    ssids=?, nodes=?, alert_types=?,
+                    vendor=COALESCE(?,vendor)
+                WHERE mac=?
+            """, (ts, _json.dumps(ssids), _json.dumps(nodes),
+                  _json.dumps(atypes), vendor, mac))
+        else:
+            ssids  = [ssid] if ssid else []
+            nodes  = [node]
+            atypes = {atype: 1}
+            conn.execute("""
+                INSERT INTO devices
+                    (mac, vendor, first_seen, last_seen, alert_count, ssids, nodes, alert_types)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+            """, (mac, vendor, ts, ts,
+                  _json.dumps(ssids), _json.dumps(nodes), _json.dumps(atypes)))
+
+
+def get_devices(limit=200, page=1):
+    import json as _json
+    limit  = _validate_limit(limit)
+    page   = max(1, page)
+    offset = (page - 1) * limit
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM devices").fetchone()[0]
+        rows  = conn.execute(
+            "SELECT * FROM devices ORDER BY last_seen DESC LIMIT ? OFFSET ?",
+            (limit, offset)
+        ).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["ssids"]       = _json.loads(d["ssids"])
+        d["nodes"]       = _json.loads(d["nodes"])
+        d["alert_types"] = _json.loads(d["alert_types"])
+        result.append(d)
+    return {
+        "page":        page,
+        "limit":       limit,
+        "total":       total,
+        "total_pages": max(1, -(-total // limit)),
+        "devices":     result,
+    }

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="filter-bar">
+    <input type="text" class="search-input" id="search-input" placeholder="Search MAC, vendor, SSID...">
+    <span class="filter-count" id="filter-count"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Tracked Devices</div>
+    <table class="alert-table">
+      <thead>
+        <tr>
+          <th>MAC</th>
+          <th>Vendor</th>
+          <th>First Seen</th>
+          <th>Last Seen</th>
+          <th>Alerts</th>
+          <th>SSIDs Probed</th>
+          <th>Nodes</th>
+          <th>Alert Types</th>
+        </tr>
+      </thead>
+      <tbody id="devices-body">
+        <tr class="empty-row"><td colspan="8">No devices tracked yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/devices.js"></script>
+{% endblock %}

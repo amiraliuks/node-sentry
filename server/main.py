@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from functools import wraps
 import os
 
-from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor
+from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor, upsert_device, get_devices, init_devices_table
 from mqtt_client import MQTTClient
 import config as cfg_module
 import notifier
@@ -65,6 +65,7 @@ def server_error(e):
 def on_alert(payload):
     insert_alert(payload)
     payload["vendor"] = get_vendor(payload.get("mac"))
+    upsert_device(payload)
     notifier.process(payload)
     socketio.emit("alert", payload)
 
@@ -119,6 +120,18 @@ def api_stats():
 def api_nodes():
     return jsonify(get_nodes())
 
+@app.route("/api/devices")
+@require_api_key
+@limiter.limit("60 per minute")
+def api_devices():
+    limit = request.args.get("limit", 200, type=int)
+    page  = request.args.get("page", 1, type=int)
+    return jsonify(get_devices(limit=limit, page=page))
+
+@app.route("/devices")
+def devices():
+    return render_template("devices.html", active="devices", page_title="Devices", **ctx())
+
 @app.route("/api/config", methods=["GET"])
 @require_api_key
 @limiter.limit("30 per minute")
@@ -156,6 +169,7 @@ def api_test_discord():
 
 if __name__ == "__main__":
     init_db()
+    init_devices_table()
 
     mqtt = MQTTClient(
         broker=BROKER,

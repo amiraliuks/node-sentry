@@ -184,4 +184,4 @@ if __name__ == "__main__":
     print("[*] NodeSentry starting on http://localhost:5000")
     if not API_KEY:
         print("[!] Warning: API_KEY not set in .env — endpoints are open (dev mode)")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)

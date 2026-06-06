@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+config.json
+server/nodesentry.db
+server/nodesentry.db-shm
+server/nodesentry.db-wal
+.git/
+*.md
+nodes/mock_node.py

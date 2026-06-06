@@ -19,17 +19,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const filtered = devices.filter(d => {
       if (!search) return true;
-      const hay = [
-        d.mac,
-        d.vendor || '',
-        ...(d.ssids || []),
-        ...(d.nodes || []),
-      ].join(' ').toLowerCase();
+      const hay = [d.mac, d.vendor || '', ...(d.ssids || []), ...(d.nodes || [])].join(' ').toLowerCase();
       return hay.includes(search);
     });
 
-    document.getElementById('filter-count').textContent =
-      `${filtered.length} of ${devices.length} devices`;
+    document.getElementById('filter-count').textContent = `${filtered.length} of ${devices.length} devices`;
 
     const tbody = document.getElementById('devices-body');
     if (!filtered.length) {
@@ -44,35 +38,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="color:var(--text-sub)">${fmtDate(d.first_seen)}</td>
         <td style="color:var(--text-sub)">${fmtDate(d.last_seen)}</td>
         <td><span style="font-family:var(--font-mono);font-weight:600">${d.alert_count}</span></td>
-        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">
-          ${d.ssids.length ? d.ssids.join(', ') : '—'}
-        </td>
-        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">
-          ${d.nodes.join(', ')}
-        </td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.join(', ') : '—'}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.nodes.join(', ')}</td>
         <td>${fmtAlertTypes(d.alert_types)}</td>
       </tr>`).join('');
   }
 
-  document.getElementById('search-input').addEventListener('input', applyFilters);
-
-  try {
-    const res              = await fetch('/api/devices?limit=500', { headers: { 'X-API-Key': API_KEY } });
-    const { devices: db }  = await res.json();
-    devices = db;
-    applyFilters();
-  } catch (e) {
-    console.error('[!] Failed to load devices:', e);
+  function downloadFile(content, filename, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
-  // Live update — refresh device list when new alert arrives
-  socket.on('alert', async () => {
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
+    const headers = ['mac', 'vendor', 'first_seen', 'last_seen', 'alert_count', 'ssids', 'nodes'];
+    const rows    = devices.map(d =>
+      headers.map(h => {
+        const v = d[h];
+        return JSON.stringify(Array.isArray(v) ? v.join(';') : (v ?? ''));
+      }).join(',')
+    );
+    downloadFile([headers.join(','), ...rows].join('\n'), `nodesentry-devices-${Date.now()}.csv`, 'text/csv');
+  });
+
+  document.getElementById('btn-export-json').addEventListener('click', () => {
+    downloadFile(JSON.stringify(devices, null, 2), `nodesentry-devices-${Date.now()}.json`, 'application/json');
+  });
+
+  async function loadDevices() {
     try {
       const res             = await fetch('/api/devices?limit=500', { headers: { 'X-API-Key': API_KEY } });
       const { devices: db } = await res.json();
       devices = db;
       applyFilters();
-    } catch (_) {}
-  });
+    } catch (e) {
+      console.error('[!] Failed to load devices:', e);
+    }
+  }
+
+  loadDevices();
+
+  socket.on('alert', () => loadDevices());
 
 });

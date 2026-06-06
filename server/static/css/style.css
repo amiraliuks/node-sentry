@@ -63,16 +63,15 @@ body { display: flex; }
 /* Logo */
 .logo {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   padding: 0 20px 24px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
 }
 .logo img {
-  width: 36px;
-  height: 36px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
 }
 .logo-text {
@@ -543,3 +542,19 @@ body { display: flex; }
 [data-theme="light"] .node-card { background: var(--bg2); }
 [data-theme="light"] .type-probe { color: var(--accent); border-color: rgba(0,138,94,0.2); background: rgba(0,138,94,0.08); }
 [data-theme="light"] .rssi-close { color: var(--success); }
+
+/* Export button */
+.btn-export {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text-sub);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 0.1s, border-color 0.1s;
+}
+.btn-export:hover { color: var(--accent); border-color: var(--accent); }

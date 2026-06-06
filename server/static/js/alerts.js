@@ -1,14 +1,16 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
-  let alerts  = [];
-  const nodes = new Set();
+  let allAlerts  = [];
+  let currentPage = 1;
+  let totalPages  = 1;
+  const PAGE_SIZE = 50;
+  const nodes     = new Set();
 
-  function applyFilters() {
+  function getFiltered() {
     const search  = document.getElementById('search-input').value.toLowerCase();
     const typeVal = document.getElementById('type-filter').value;
     const nodeVal = document.getElementById('node-filter').value;
-
-    const filtered = [...alerts].reverse().filter(a => {
+    return allAlerts.filter(a => {
       if (typeVal && a.type !== typeVal) return false;
       if (nodeVal && a.node !== nodeVal) return false;
       if (search) {
@@ -17,25 +19,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       return true;
     });
+  }
+
+  function renderPage() {
+    const filtered = getFiltered();
+    const start    = (currentPage - 1) * PAGE_SIZE;
+    const end      = start + PAGE_SIZE;
+    const page     = filtered.slice(start, end);
+    totalPages     = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 
     document.getElementById('filter-count').textContent =
-      `${filtered.length} of ${alerts.length}`;
+      `${filtered.length} alerts`;
 
     const tbody = document.getElementById('all-alerts-body');
-    if (!filtered.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No alerts match the current filter.</td></tr>';
+    if (!page.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No alerts match the current filter.</td></tr>';
+    } else {
+      tbody.innerHTML = page.map(a => `
+        <tr>
+          <td>${fmtTime(a.timestamp)}</td>
+          <td>${a.node}</td>
+          <td>${typeBadge(a.type)}</td>
+          <td>${fmtMac(a.mac, a.vendor)}</td>
+          <td>${a.ssid || '—'}</td>
+          <td>${fmtRssi(a.rssi)}</td>
+          <td>${fmtSeverity(a.severity)}</td>
+        </tr>`).join('');
+    }
+
+    renderPagination(filtered.length);
+  }
+
+  function renderPagination(total) {
+    const container = document.getElementById('pagination');
+    if (!container) return;
+
+    if (totalPages <= 1) {
+      container.innerHTML = '';
       return;
     }
-    tbody.innerHTML = filtered.map(a => `
-      <tr>
-        <td>${fmtTime(a.timestamp)}</td>
-        <td>${a.node}</td>
-        <td>${typeBadge(a.type)}</td>
-        <td>${fmtMac(a.mac, a.vendor)}</td>
-        <td>${a.ssid || '-'}</td>
-        <td>${fmtRssi(a.rssi)}</td>
-        <td>${fmtSeverity(a.severity)}</td>
-      </tr>`).join('');
+
+    const start = (currentPage - 1) * PAGE_SIZE + 1;
+    const end   = Math.min(currentPage * PAGE_SIZE, total);
+
+    container.innerHTML = `
+      <div class="pagination-info">${start}–${end} of ${total}</div>
+      <div class="pagination-controls">
+        <button class="page-btn" id="btn-prev" ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>
+        <span class="page-indicator">${currentPage} / ${totalPages}</span>
+        <button class="page-btn" id="btn-next" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>
+      </div>
+    `;
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderPage(); }
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; renderPage(); }
+    });
   }
 
   function addNode(node) {
@@ -48,19 +89,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sel.appendChild(opt);
   }
 
-  function getFiltered() {
-    const search  = document.getElementById('search-input').value.toLowerCase();
-    const typeVal = document.getElementById('type-filter').value;
-    const nodeVal = document.getElementById('node-filter').value;
-    return [...alerts].reverse().filter(a => {
-      if (typeVal && a.type !== typeVal) return false;
-      if (nodeVal && a.node !== nodeVal) return false;
-      if (search) {
-        const hay = `${a.mac} ${a.ssid} ${a.node} ${a.vendor}`.toLowerCase();
-        if (!hay.includes(search)) return false;
-      }
-      return true;
-    });
+  function onFilterChange() {
+    currentPage = 1;
+    renderPage();
   }
 
   function downloadFile(content, filename, mime) {
@@ -73,13 +104,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     URL.revokeObjectURL(url);
   }
 
-  document.getElementById('search-input').addEventListener('input', applyFilters);
-  document.getElementById('type-filter').addEventListener('change', applyFilters);
-  document.getElementById('node-filter').addEventListener('change', applyFilters);
+  document.getElementById('search-input').addEventListener('input', onFilterChange);
+  document.getElementById('type-filter').addEventListener('change', onFilterChange);
+  document.getElementById('node-filter').addEventListener('change', onFilterChange);
 
   document.getElementById('btn-export-csv').addEventListener('click', () => {
     const data    = getFiltered();
-    const headers = ['timestamp', 'node', 'type', 'mac', 'vendor', 'ssid', 'rssi'];
+    const headers = ['timestamp', 'node', 'type', 'mac', 'vendor', 'ssid', 'rssi', 'severity'];
     const rows    = data.map(a => headers.map(h => JSON.stringify(a[h] ?? '')).join(','));
     downloadFile([headers.join(','), ...rows].join('\n'), `nodesentry-alerts-${Date.now()}.csv`, 'text/csv');
   });
@@ -89,26 +120,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('btn-clear-alerts').addEventListener('click', () => {
-    alerts = [];
-    applyFilters();
+    allAlerts = [];
+    currentPage = 1;
+    renderPage();
   });
 
   try {
     const res            = await fetch('/api/alerts?limit=500', { headers: { 'X-API-Key': API_KEY } });
     const { alerts: db } = await res.json();
     db.reverse().forEach(a => {
-      alerts.push(a);
+      allAlerts.push(a);
       addNode(a.node);
     });
-    applyFilters();
+    renderPage();
   } catch (e) {
     console.error('[!] Failed to load alerts:', e);
   }
 
   socket.on('alert', data => {
-    alerts.push(data);
+    allAlerts.push(data);
     addNode(data.node);
-    applyFilters();
+    renderPage();
   });
 
 });

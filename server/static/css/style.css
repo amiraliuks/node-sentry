@@ -558,3 +558,21 @@ body { display: flex; }
   transition: color 0.1s, border-color 0.1s;
 }
 .btn-export:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Severity indicator */
+.severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.severity-bar {
+  width: 4px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--border2);
+}
+.severity-bar.filled.low    { background: var(--success); }
+.severity-bar.filled.medium { background: var(--warn); }
+.severity-bar.filled.high   { background: var(--danger); }

@@ -20,7 +20,11 @@
   <div class="card">
     <div class="card-header">
       Alerts
-      <button class="btn-clear" id="btn-clear-alerts">Clear</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-export" id="btn-export-csv">Export CSV</button>
+        <button class="btn-export" id="btn-export-json">Export JSON</button>
+        <button class="btn-clear" id="btn-clear-alerts">Clear</button>
+      </div>
     </div>
     <table class="alert-table">
       <thead>
@@ -31,10 +35,11 @@
           <th>MAC</th>
           <th>SSID</th>
           <th>RSSI</th>
+          <th>Severity</th>
         </tr>
       </thead>
       <tbody id="all-alerts-body">
-        <tr class="empty-row"><td colspan="6">No alerts yet.</td></tr>
+        <tr class="empty-row"><td colspan="7">No alerts yet.</td></tr>
       </tbody>
     </table>
   </div>

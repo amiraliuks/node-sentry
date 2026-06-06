@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${fmtMac(a.mac, a.vendor)}</td>
         <td>${a.ssid || '—'}</td>
         <td>${fmtRssi(a.rssi)}</td>
+        <td>${fmtSeverity(a.severity)}</td>
       </tr>`).join('');
   }
 

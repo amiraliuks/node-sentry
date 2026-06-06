@@ -1,5 +1,5 @@
-import sqlite3
 import time
+import sqlite3
 import json
 import os
 from contextlib import contextmanager
@@ -41,6 +41,7 @@ def init_db():
                 mac       TEXT,
                 ssid      TEXT,
                 rssi      INTEGER,
+                severity  INTEGER DEFAULT 1,
                 extra     TEXT,
                 timestamp INTEGER NOT NULL
             )
@@ -60,6 +61,11 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_type      ON alerts(type)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_node      ON alerts(node)")
+        # Migration: add severity column if it doesn't exist
+        try:
+            conn.execute("ALTER TABLE alerts ADD COLUMN severity INTEGER DEFAULT 1")
+        except Exception:
+            pass
     print("[DB] Database initialized.")
 
 
@@ -85,18 +91,20 @@ def _validate_node(node: str | None) -> str | None:
 
 # ── Writes ──
 def insert_alert(payload: dict):
-    known = {"node", "type", "mac", "ssid", "rssi", "timestamp"}
-    extra = {k: v for k, v in payload.items() if k not in known}
+    known    = {"node", "type", "mac", "ssid", "rssi", "timestamp"}
+    extra    = {k: v for k, v in payload.items() if k not in known}
+    severity = get_severity(payload.get("type", ""))
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO alerts (node, type, mac, ssid, rssi, extra, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO alerts (node, type, mac, ssid, rssi, severity, extra, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             payload.get("node"),
             payload.get("type"),
             payload.get("mac"),
-            payload.get("ssid"),
             payload.get("rssi"),
+            payload.get("ssid"),
+            severity,
             json.dumps(extra) if extra else None,
             payload.get("timestamp"),
         ))
@@ -195,6 +203,20 @@ def get_vendor(mac: str) -> str | None:
     except Exception:
         return None
 
+
+
+
+# Severity scoring
+SEVERITY_SCORES = {
+    'probe':        1,
+    'karma':        5,
+    'deauth':       6,
+    'evil_twin':    8,
+    'deauth_flood': 10,
+}
+
+def get_severity(alert_type: str) -> int:
+    return SEVERITY_SCORES.get(alert_type, 1)
 
 # Device tracking
 

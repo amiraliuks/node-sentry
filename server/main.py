@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from functools import wraps
 import os
 
-from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor, upsert_device, get_devices, init_devices_table
+from database import init_db, insert_alert, insert_stats, get_alerts, get_counts, get_nodes, get_vendor, upsert_device, get_devices, init_devices_table, get_severity
 from mqtt_client import MQTTClient
 import config as cfg_module
 import notifier
@@ -63,6 +63,7 @@ def server_error(e):
 
 
 def on_alert(payload):
+    payload["severity"] = get_severity(payload.get("type", ""))
     insert_alert(payload)
     payload["vendor"] = get_vendor(payload.get("mac"))
     upsert_device(payload)

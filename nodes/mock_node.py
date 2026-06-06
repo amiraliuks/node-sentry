@@ -18,11 +18,14 @@ SAMPLE_MACS = [
 ]
 
 SAMPLE_SSIDS = [
-    "HomeNetwork",
-    "Telekom_12345",
-    "FreeWifi",
-    "iPhone of Amir",
-    "KSAL_Net",
+    "VALA_4G_WiFi",
+    "IPKO_Fiber_Secure",
+    "ONE_Albania_Business",
+    "Albtelecom_Home_99",
+    "Kafe_Net_E_Re",
+    "Hotel_Prishtina_Guest",
+    "TEB_Bank_Client_WiFi",
+    "Aeroporti_Tirana_Free"
 ]
 
 client = mqtt.Client()

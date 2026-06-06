@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NodeSentry{% if page_title %} — {{ page_title }}{% endif %}</title>
+  <script>
+    (function() {
+      const t = localStorage.getItem('nodesentry-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="/static/img/logo.png" alt="NodeSentry" onerror="this.style.display='none'">
+      <span class="logo-text">NodeSentry</span>
+    </div>
+
+    <nav class="nav">
+      <a href="/" class="nav-item {% if active == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">▦</span> Dashboard
+      </a>
+      <a href="/alerts" class="nav-item {% if active == 'alerts' %}active{% endif %}">
+        <span class="nav-icon">⚑</span> Alerts
+      </a>
+      <a href="/nodes" class="nav-item {% if active == 'nodes' %}active{% endif %}">
+        <span class="nav-icon">◎</span> Nodes
+      </a>
+      <a href="/probes" class="nav-item {% if active == 'probes' %}active{% endif %}">
+        <span class="nav-icon">⊹</span> Probe Log
+      </a>
+      <a href="/settings" class="nav-item {% if active == 'settings' %}active{% endif %}">
+        <span class="nav-icon">⚙</span> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/nodes" class="node-status-link">
+        <div class="status-dot" id="conn-dot"></div>
+        <span class="node-status-label" id="conn-label">Connecting...</span>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">{{ page_title or 'Dashboard' }}</h1>
+        <span class="page-sub" id="current-time"></span>
+      </div>
+      <div class="topbar-right">
+        <button class="theme-btn" id="theme-btn" title="Toggle theme">◑</button>
+      </div>
+    </header>
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    const API_KEY = "{{ api_key }}";
+
+    function updateClock() {
+      document.getElementById('current-time').textContent = new Date().toLocaleString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    const socket = io();
+    socket.on('connect', () => {
+      document.getElementById('conn-dot').className = 'status-dot connected';
+      document.getElementById('conn-label').textContent = 'Online';
+    });
+    socket.on('disconnect', () => {
+      document.getElementById('conn-dot').className = 'status-dot disconnected';
+      document.getElementById('conn-label').textContent = 'Offline';
+    });
+
+    // Theme switcher
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.textContent = theme === 'dark' ? '◑' : '◐';
+    }
+
+    applyTheme(localStorage.getItem('nodesentry-theme') || 'dark');
+
+    document.getElementById('theme-btn').addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next    = current === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('nodesentry-theme', next);
+      applyTheme(next);
+    });
+  </script>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

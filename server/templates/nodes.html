@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">Node Status</div>
+    <div id="nodes-grid" class="nodes-grid">
+      <div style="background:var(--bg2);padding:48px 20px;text-align:center;color:var(--text-muted);font-size:13px;">
+        No nodes connected yet.
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/nodes.js"></script>
+{% endblock %}

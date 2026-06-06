@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Alerts</div>
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-sub">since start</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-label">Deauth Floods</div>
+      <div class="stat-value" id="stat-deauth">0</div>
+      <div class="stat-sub">detected</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-label">Evil Twins</div>
+      <div class="stat-value" id="stat-eviltwin">0</div>
+      <div class="stat-sub">detected</div>
+    </div>
+    <div class="stat-card info">
+      <div class="stat-label">Probe Requests</div>
+      <div class="stat-value" id="stat-probe">0</div>
+      <div class="stat-sub">logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Karma Attacks</div>
+      <div class="stat-value" id="stat-karma">0</div>
+      <div class="stat-sub">detected</div>
+    </div>
+    <div class="stat-card info">
+      <div class="stat-label">Active Nodes</div>
+      <div class="stat-value" id="stat-nodes">0</div>
+      <div class="stat-sub">online</div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="card-header">Alert Types</div>
+      <div class="chart-inner" style="position:relative;height:200px;">
+        <canvas id="chart-types"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header">Alerts Over Time</div>
+      <div class="chart-inner" style="position:relative;height:200px;">
+        <canvas id="chart-timeline"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Recent Alerts</div>
+    <table class="alert-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Node</th>
+          <th>Type</th>
+          <th>MAC</th>
+          <th>SSID</th>
+          <th>RSSI</th>
+        </tr>
+      </thead>
+      <tbody id="recent-alerts-body">
+        <tr class="empty-row"><td colspan="6">Waiting for alerts...</td></tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">Telegram Notifications</div>
+    <div class="settings-group">
+      <div class="setting-row">
+        <label>Enabled</label>
+        <input type="checkbox" id="tg-enabled" class="toggle">
+      </div>
+      <div class="setting-row">
+        <label>Bot Token</label>
+        <input type="text" id="tg-token" class="setting-input" placeholder="7412345678:AAF...">
+      </div>
+      <div class="setting-row">
+        <label>Chat ID</label>
+        <input type="text" id="tg-chatid" class="setting-input" placeholder="6136658354">
+      </div>
+      <div class="setting-actions">
+        <button class="btn-test" id="btn-test-telegram">Send Test Message</button>
+        <span class="test-result" id="tg-result"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Discord Notifications</div>
+    <div class="settings-group">
+      <div class="setting-row">
+        <label>Enabled</label>
+        <input type="checkbox" id="dc-enabled" class="toggle">
+      </div>
+      <div class="setting-row">
+        <label>Webhook URL</label>
+        <input type="text" id="dc-webhook" class="setting-input" placeholder="https://discord.com/api/webhooks/...">
+      </div>
+      <div class="setting-actions">
+        <button class="btn-test" id="btn-test-discord">Send Test Message</button>
+        <span class="test-result" id="dc-result"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Detection Thresholds</div>
+    <div class="settings-group">
+      <div class="setting-row">
+        <label>Deauth frames before alert</label>
+        <input type="number" id="th-deauth-count" class="setting-input small" min="1" max="100">
+      </div>
+      <div class="setting-row">
+        <label>Deauth window (seconds)</label>
+        <input type="number" id="th-deauth-window" class="setting-input small" min="1" max="300">
+      </div>
+      <div class="setting-row">
+        <label>Notification cooldown (seconds)</label>
+        <input type="number" id="th-cooldown" class="setting-input small" min="1" max="3600">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">MAC Whitelist</div>
+    <div class="settings-group">
+      <div class="setting-row">
+        <input type="text" id="whitelist-input" class="setting-input" placeholder="AC:BC:32:11:22:33">
+        <button class="btn-test" id="btn-add-mac">Add</button>
+      </div>
+      <div id="whitelist-entries"></div>
+    </div>
+  </div>
+
+  <div class="settings-save-row">
+    <button class="btn-save" id="btn-save-settings">Save Settings</button>
+    <span class="test-result" id="save-result"></span>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/settings.js"></script>
+{% endblock %}

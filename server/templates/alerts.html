@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="filter-bar">
+    <input type="text" class="search-input" id="search-input" placeholder="Search MAC, SSID, node...">
+    <select class="filter-select" id="type-filter">
+      <option value="">All types</option>
+      <option value="deauth">Deauth</option>
+      <option value="deauth_flood">Deauth Flood</option>
+      <option value="evil_twin">Evil Twin</option>
+      <option value="karma">Karma</option>
+      <option value="probe">Probe</option>
+    </select>
+    <select class="filter-select" id="node-filter">
+      <option value="">All nodes</option>
+    </select>
+    <span class="filter-count" id="filter-count"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      Alerts
+      <button class="btn-clear" id="btn-clear-alerts">Clear</button>
+    </div>
+    <table class="alert-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Node</th>
+          <th>Type</th>
+          <th>MAC</th>
+          <th>SSID</th>
+          <th>RSSI</th>
+        </tr>
+      </thead>
+      <tbody id="all-alerts-body">
+        <tr class="empty-row"><td colspan="6">No alerts yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/alerts.js"></script>
+{% endblock %}

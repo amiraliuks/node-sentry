@@ -73,9 +73,29 @@ def on_stats(payload):
     socketio.emit("stats", payload)
 
 
+def ctx(**kwargs):
+    kwargs.setdefault("api_key", os.getenv("API_KEY", ""))
+    return kwargs
+
 @app.route("/")
 def index():
-    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
+    return render_template("dashboard.html", active="dashboard", page_title="Dashboard", **ctx())
+
+@app.route("/alerts")
+def alerts():
+    return render_template("alerts.html", active="alerts", page_title="Alerts", **ctx())
+
+@app.route("/nodes")
+def nodes():
+    return render_template("nodes.html", active="nodes", page_title="Nodes", **ctx())
+
+@app.route("/probes")
+def probes():
+    return render_template("probes.html", active="probes", page_title="Probe Log", **ctx())
+
+@app.route("/settings")
+def settings():
+    return render_template("settings.html", active="settings", page_title="Settings", **ctx())
 
 @app.route("/api/alerts")
 @require_api_key

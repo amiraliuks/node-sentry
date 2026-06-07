@@ -35,6 +35,7 @@ socketio = SocketIO(app, cors_allowed_origins=[
 BROKER  = os.getenv("MQTT_BROKER", "localhost")
 PORT    = int(os.getenv("MQTT_PORT", 1883))
 API_KEY = os.getenv("API_KEY", "")
+node_status: dict[str, str] = {}
 
 
 def require_api_key(f):
@@ -73,6 +74,16 @@ def on_alert(payload):
 def on_stats(payload):
     insert_stats(payload)
     socketio.emit("stats", payload)
+
+
+def on_status(payload):
+    node      = payload.get("node")
+    status    = payload.get("status", "offline")
+    timestamp = payload.get("timestamp", 0)
+    if node:
+        node_status[node] = status
+        print(f"[STATUS] {node} is {status}")
+        socketio.emit("node_status", {"node": node, "status": status, "timestamp": timestamp})
 
 
 def ctx(**kwargs):
@@ -126,7 +137,10 @@ def api_stats():
 @require_api_key
 @limiter.limit("60 per minute")
 def api_nodes():
-    return jsonify(get_nodes())
+    nodes = get_nodes()
+    for n in nodes:
+        n["status"] = node_status.get(n["node"], "unknown")
+    return jsonify(nodes)
 
 @app.route("/api/devices")
 @require_api_key
@@ -305,6 +319,7 @@ if __name__ == "__main__":
         port=PORT,
         on_alert=on_alert,
         on_stats=on_stats,
+        on_status=on_status,
     )
 
     mqtt_thread = threading.Thread(target=mqtt.start, daemon=True)

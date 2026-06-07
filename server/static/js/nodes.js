@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
-  const nodes = {};
+  const nodes  = {};
+  const status = {};
+
+  function statusBadge(node) {
+    const s = status[node] || 'unknown';
+    const color = s === 'online' ? 'var(--success)' : s === 'offline' ? 'var(--danger)' : 'var(--text-muted)';
+    const label = s === 'online' ? 'Online' : s === 'offline' ? 'Offline' : 'Unknown';
+    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${color};">
+      <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block;"></span>
+      ${label}
+    </span>`;
+  }
 
   function renderNodes() {
     const grid    = document.getElementById('nodes-grid');
@@ -15,7 +26,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     grid.innerHTML = entries.map(n => `
       <div class="node-card">
-        <div class="node-name">◎ ${n.node}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="node-name" style="margin-bottom:0;">◎ ${n.node}</div>
+          ${statusBadge(n.node)}
+        </div>
         <div class="node-stat"><span>Uptime</span><span>${n.uptime}s</span></div>
         <div class="node-stat"><span>Packets seen</span><span>${n.packets_seen}</span></div>
         <div class="node-stat"><span>Alerts sent</span><span>${n.alerts_sent}</span></div>
@@ -28,15 +42,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const res  = await fetch('/api/nodes', { headers: { 'X-API-Key': API_KEY } });
     const data = await res.json();
-    data.forEach(n => { nodes[n.node] = n; });
+    data.forEach(n => {
+      nodes[n.node]  = n;
+      status[n.node] = n.status || 'unknown';
+    });
     renderNodes();
   } catch (e) {
     console.error('[!] Failed to load nodes:', e);
   }
 
-  // Live updates
+  // Live stats update
   socket.on('stats', data => {
     nodes[data.node] = data;
+    renderNodes();
+  });
+
+  // Live status update from LWT
+  socket.on('node_status', data => {
+    status[data.node] = data.status;
     renderNodes();
   });
 

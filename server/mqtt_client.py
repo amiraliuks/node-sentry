@@ -1,19 +1,21 @@
 import json
 import paho.mqtt.client as mqtt
-import os
+
 
 class MQTTClient:
-    def __init__(self, broker: str, port: int, on_alert, on_stats):
+    def __init__(self, broker: str, port: int, on_alert, on_stats, on_status=None):
         """
-        broker   - MQTT broker host
-        port     - MQTT broker port
-        on_alert - callback(payload: dict) called when an alert message arrives
-        on_stats - callback(payload: dict) called when a stats message arrives
+        broker    - MQTT broker host
+        port      - MQTT broker port
+        on_alert  - callback(payload: dict) called when an alert message arrives
+        on_stats  - callback(payload: dict) called when a stats message arrives
+        on_status - callback(payload: dict) called when a node status message arrives (LWT)
         """
-        self.broker   = broker
-        self.port     = port
-        self.on_alert = on_alert
-        self.on_stats = on_stats
+        self.broker    = broker
+        self.port      = port
+        self.on_alert  = on_alert
+        self.on_stats  = on_stats
+        self.on_status = on_status
 
         self._client = mqtt.Client()
         self._client.on_connect    = self._on_connect
@@ -44,6 +46,11 @@ class MQTTClient:
                 print(f"[MQTT] Stats  → {payload}")
                 self.on_stats(payload)
 
+            elif "/status" in topic:
+                print(f"[MQTT] Status → {payload}")
+                if self.on_status:
+                    self.on_status(payload)
+
             else:
                 print(f"[MQTT] Unknown topic: {topic}")
 
@@ -56,7 +63,7 @@ class MQTTClient:
         try:
             self._client.connect(self.broker, self.port, keepalive=60)
         except ConnectionRefusedError:
-            print(f"[MQTT] Could not connect to broker at {self.broker}:{self.port} - is Mosquitto running?")
+            print(f"[MQTT] Could not connect to broker at {self.broker}:{self.port} — is Mosquitto running?")
             raise
         except Exception as e:
             print(f"[MQTT] Connection error: {e}")

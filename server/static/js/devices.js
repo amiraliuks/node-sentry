@@ -11,10 +11,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function fmtAlertTypes(types) {
-    return Object.entries(types)
-      .sort((a, b) => b[1] - a[1])
-      .map(([type, count]) => `${typeBadge(type)} <span style="color:var(--text-muted);font-size:11px">${count}</span>`)
-      .join(' ');
+    const entries = Object.entries(types).sort((a, b) => b[1] - a[1]);
+    if (!entries.length) return '—';
+    return `<div style="display:flex;flex-direction:column;gap:5px;">
+      ${entries.map(([type, count]) => `
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${typeBadge(type)}
+          <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">${count}</span>
+        </div>`).join('')}
+    </div>`;
   }
 
   function getFiltered() {

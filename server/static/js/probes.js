@@ -30,7 +30,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const tbody = document.getElementById('probe-body');
     if (!page.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No probe requests match the current filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+        <div class="empty-state-icon">⊹</div>
+        <div class="empty-state-title">No probe requests</div>
+        <div class="empty-state-sub">Probe requests from nearby devices will appear here once a node is scanning.</div>
+      </div></td></tr>`;
     } else {
       tbody.innerHTML = page.map(p => `
         <tr>

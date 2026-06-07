@@ -33,7 +33,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const tbody = document.getElementById('all-alerts-body');
     if (!page.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No alerts match the current filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+        <div class="empty-state-icon">⚑</div>
+        <div class="empty-state-title">No alerts</div>
+        <div class="empty-state-sub">No alerts match the current filter. Try adjusting your search or run the mock node to generate data.</div>
+      </div></td></tr>`;
     } else {
       tbody.innerHTML = page.map(a => `
         <tr>

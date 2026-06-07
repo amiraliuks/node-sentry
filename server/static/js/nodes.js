@@ -6,7 +6,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid    = document.getElementById('nodes-grid');
     const entries = Object.values(nodes);
     if (!entries.length) {
-      grid.innerHTML = '<p class="empty-msg">No nodes connected yet.</p>';
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-state-icon">◎</div>
+        <div class="empty-state-title">No nodes connected</div>
+        <div class="empty-state-sub">Flash the firmware onto a WeMos D1 Mini Pro and connect it to the same network as the broker. Node stats will appear here automatically.</div>
+      </div>`;
       return;
     }
     grid.innerHTML = entries.map(n => `

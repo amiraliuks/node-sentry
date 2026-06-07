@@ -42,7 +42,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const tbody = document.getElementById('devices-body');
     if (!page.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No devices match the current filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+        <div class="empty-state-icon">⊡</div>
+        <div class="empty-state-title">No devices tracked</div>
+        <div class="empty-state-sub">Devices appear here as alerts are received. Run the mock node or connect a sensor to start tracking.</div>
+      </div></td></tr>`;
     } else {
       tbody.innerHTML = page.map(d => `
         <tr>

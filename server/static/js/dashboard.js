@@ -103,7 +103,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tbody  = document.getElementById('recent-alerts-body');
     const recent = alerts.slice(-20).reverse();
     if (!recent.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Waiting for alerts...</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      <div class="empty-state-icon">▦</div>
+      <div class="empty-state-title">No alerts yet</div>
+      <div class="empty-state-sub">Waiting for sensor data. Start the mock node or connect a D1 Mini to begin monitoring.</div>
+    </div></td></tr>`;
       return;
     }
     tbody.innerHTML = recent.map(a => `
@@ -112,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${a.node}</td>
         <td>${typeBadge(a.type)}</td>
         <td>${fmtMac(a.mac, a.vendor)}</td>
-        <td>${a.ssid || '-'}</td>
+        <td>${a.ssid || '—'}</td>
         <td>${fmtRssi(a.rssi)}</td>
         <td>${fmtSeverity(a.severity)}</td>
       </tr>`).join('');

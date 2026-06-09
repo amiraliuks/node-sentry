@@ -3,10 +3,19 @@
 {% block head %}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css">
   <style>
-    /* Make the main content area allow swagger to expand naturally */
-    .main { padding-bottom: 0; }
+    .main {
+      height: 100vh;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 0;
+      overflow: hidden;
+    }
+    .topbar { flex-shrink: 0; }
 
     #swagger-ui {
+      flex: 1;
+      overflow-y: auto;
       margin-top: -8px; /* optical alignment against topbar border */
     }
 

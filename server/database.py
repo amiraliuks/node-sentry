@@ -288,7 +288,12 @@ def get_devices(limit=200, page=1):
     with get_conn() as conn:
         total = conn.execute("SELECT COUNT(*) FROM devices").fetchone()[0]
         rows  = conn.execute(
-            "SELECT * FROM devices ORDER BY last_seen DESC LIMIT ? OFFSET ?",
+            """SELECT d.mac, COALESCE(d.vendor, o.vendor) AS vendor,
+                      d.first_seen, d.last_seen, d.alert_count,
+                      d.ssids, d.nodes, d.alert_types
+               FROM devices d
+               LEFT JOIN oui o ON SUBSTR(d.mac, 1, 8) = o.prefix
+               ORDER BY d.last_seen DESC LIMIT ? OFFSET ?""",
             (limit, offset)
         ).fetchall()
     result = []

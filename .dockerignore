@@ -5,9 +5,11 @@ __pycache__/
 *.pyo
 .env
 config.json
-server/nodesentry.db
-server/nodesentry.db-shm
-server/nodesentry.db-wal
+data/
+*.db
+*.sqlite
+*.sqlite3
+nodes/firmware/credentials.h
 .git/
 *.md
 nodes/mock_node.py

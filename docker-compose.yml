@@ -5,9 +5,12 @@ services:
     container_name: nodesentry-mqtt
     restart: unless-stopped
     ports:
+      # Sensor nodes publish to the broker over the LAN, so 1883 must be reachable.
+      # On an untrusted network, enable authentication + TLS in mosquitto.conf
+      # (see the Security section in the README) rather than relying on anonymous access.
       - "1883:1883"
     volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     networks:
       - nodesentry
@@ -21,11 +24,14 @@ services:
     environment:
       - MQTT_BROKER=mosquitto
       - MQTT_PORT=1883
+      - NODESENTRY_DATA_DIR=/app/data
     env_file:
       - .env
     volumes:
-      - ./server/nodesentry.db:/app/server/nodesentry.db
-      - ./config.json:/app/config.json
+      # DB + config.json persist here. A directory-backed named volume avoids the
+      # "bind-mount a file that doesn't exist yet" breakage and works under the
+      # container's non-root user.
+      - nodesentry-data:/app/data
     depends_on:
       - mosquitto
     networks:
@@ -33,6 +39,7 @@ services:
 
 volumes:
   mosquitto-data:
+  nodesentry-data:
 
 networks:
   nodesentry:

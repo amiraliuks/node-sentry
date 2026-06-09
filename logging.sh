@@ -7,7 +7,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 BAUD=115200
-BROKER_HOST="192.168.0.192"
+BROKER_HOST="localhost"   # overridden by MQTT_BROKER in .env if present
 BROKER_PORT=1883
 
 # Read broker config from .env if present

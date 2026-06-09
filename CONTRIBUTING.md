@@ -20,9 +20,10 @@ cd node-sentry
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp config.example.json config.json
 cp .env.example .env
-# Edit .env and set API_KEY and SECRET_KEY
+# Edit .env and set API_KEY and SECRET_KEY (both required)
+# Notification/threshold config is created on first save from the Settings page
+# and persists under data/ (config.json.example documents the schema).
 ```
 
 Start the broker:
@@ -67,11 +68,11 @@ node-sentry/
 │       └── js/                 # Per-page JavaScript modules
 ├── mosquitto/
 │   └── mosquitto.conf
-├── backfill_devices.py         # One-time migration script
+├── backfille_devices.py        # One-time migration script
 ├── update_oui.py               # Downloads IEEE OUI database
 ├── docker-compose.yml
 ├── Dockerfile
-└── config.example.json
+└── config.json.example
 ```
 
 ---

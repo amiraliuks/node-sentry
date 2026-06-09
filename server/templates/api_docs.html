@@ -107,8 +107,9 @@
       defaultModelExpandDepth: 2,
       displayRequestDuration: true,
       requestInterceptor: (req) => {
-        const key = '{{ api_key }}';
-        if (key) req.headers['X-API-Key'] = key;
+        // Same-origin browser requests authenticate via the HttpOnly session
+        // cookie set on page load; no API key is exposed to the page.
+        req.credentials = 'same-origin';
         return req;
       }
     });

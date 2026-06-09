@@ -73,7 +73,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const timelineBuckets = {};
 
   function addToTimeline(ts) {
-    const d   = new Date(ts * 1000);
+    const n = Number(ts);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const d   = new Date((n > 1e12 ? n : n * 1000));
     const key = `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
     timelineBuckets[key] = (timelineBuckets[key] || 0) + 1;
     const keys = Object.keys(timelineBuckets).slice(-15);
@@ -113,10 +115,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     tbody.innerHTML = recent.map(a => `
       <tr>
         <td>${fmtTime(a.timestamp)}</td>
-        <td>${a.node}</td>
+        <td>${escapeHtml(a.node)}</td>
         <td>${typeBadge(a.type)}</td>
         <td>${fmtMac(a.mac, a.vendor)}</td>
-        <td>${a.ssid || '—'}</td>
+        <td>${a.ssid ? escapeHtml(a.ssid) : '—'}</td>
         <td>${fmtRssi(a.rssi)}</td>
         <td>${fmtSeverity(a.severity)}</td>
       </tr>`).join('');
@@ -124,9 +126,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const [alertsRes, statsRes, nodesRes] = await Promise.all([
-      fetch('/api/alerts?limit=200', { headers: { 'X-API-Key': API_KEY } }),
-      fetch('/api/stats',            { headers: { 'X-API-Key': API_KEY } }),
-      fetch('/api/nodes',            { headers: { 'X-API-Key': API_KEY } }),
+      fetch('/api/alerts?limit=200'),
+      fetch('/api/stats'),
+      fetch('/api/nodes'),
     ]);
 
     const { alerts: dbAlerts } = await alertsRes.json();
@@ -135,7 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     dbAlerts.reverse().forEach(a => {
       alerts.push(a);
-      const d   = new Date(a.timestamp * 1000);
+      const n = Number(a.timestamp);
+      if (!Number.isFinite(n) || n <= 0) return;
+      const d   = new Date((n > 1e12 ? n : n * 1000));
       const key = `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
       timelineBuckets[key] = (timelineBuckets[key] || 0) + 1;
     });
@@ -161,6 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   socket.on('alert', data => {
     alerts.push(data);
+    if (alerts.length > 5000) alerts.splice(0, alerts.length - 5000);
     state.counts.total++;
     if (state.counts[data.type] !== undefined) state.counts[data.type]++;
     addToTimeline(data.timestamp);

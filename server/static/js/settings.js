@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadSettings() {
     try {
-      const res     = await fetch('/api/config', { headers: { 'X-API-Key': API_KEY } });
+      const res     = await fetch('/api/config');
       currentConfig = await res.json();
 
       document.getElementById('tg-enabled').checked  = currentConfig.notifications.telegram.enabled;
@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     container.innerHTML = entries.map(mac => `
       <div class="whitelist-entry">
-        <span>${mac}</span>
-        <button class="whitelist-remove" data-mac="${mac}">✕</button>
+        <span>${escapeHtml(mac)}</span>
+        <button class="whitelist-remove" data-mac="${escapeHtml(mac)}">✕</button>
       </div>
     `).join('');
     container.querySelectorAll('.whitelist-remove').forEach(btn => {
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const res  = await fetch('/api/config', {
         method:  'POST',
-        headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(currentConfig),
       });
       const data = await res.json();
@@ -91,9 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     result.className   = 'test-result';
     result.textContent = 'Sending...';
     try {
-      const res  = await fetch('/api/config/test/telegram', {
-        method: 'POST', headers: { 'X-API-Key': API_KEY },
-      });
+      const res  = await fetch('/api/config/test/telegram', { method: 'POST' });
       const data = await res.json();
       result.textContent = data.success ? 'Message sent!' : 'Failed - check token and chat ID.';
       if (!data.success) result.className = 'test-result error';
@@ -109,9 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     result.className   = 'test-result';
     result.textContent = 'Sending...';
     try {
-      const res  = await fetch('/api/config/test/discord', {
-        method: 'POST', headers: { 'X-API-Key': API_KEY },
-      });
+      const res  = await fetch('/api/config/test/discord', { method: 'POST' });
       const data = await res.json();
       result.textContent = data.success ? 'Message sent!' : 'Failed - check webhook URL.';
       if (!data.success) result.className = 'test-result error';

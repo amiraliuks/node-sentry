@@ -39,9 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       tbody.innerHTML = page.map(p => `
         <tr>
           <td>${fmtTime(p.timestamp)}</td>
-          <td>${p.node}</td>
+          <td>${escapeHtml(p.node)}</td>
           <td>${fmtMac(p.mac, p.vendor)}</td>
-          <td>${p.ssid || '(hidden)'}</td>
+          <td>${p.ssid ? escapeHtml(p.ssid) : '(hidden)'}</td>
           <td>${fmtRssi(p.rssi)}</td>
         </tr>`).join('');
     }
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   try {
-    const res            = await fetch('/api/alerts?limit=500&type=probe', { headers: { 'X-API-Key': API_KEY } });
+    const res            = await fetch('/api/alerts?limit=500&type=probe');
     const { alerts: db } = await res.json();
     db.reverse().forEach(p => {
       probes.push(p);
@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   socket.on('alert', data => {
     if (data.type === 'probe') {
       probes.push(data);
+      if (probes.length > 5000) probes.splice(0, probes.length - 5000);
       addNode(data.node);
       renderPage();
     }

@@ -1,4 +1,6 @@
 import time
+import queue
+import threading
 import requests
 import config
 
@@ -6,6 +8,9 @@ NOTIFY_TYPES = {"evil_twin", "karma", "deauth_flood"}
 
 _cooldowns: dict[str, float] = {}
 _deauth_tracker: dict[str, list[float]] = {}
+_MAX_DEAUTH_ENTRIES = 256
+
+_notif_queue: queue.Queue = queue.Queue(maxsize=100)
 
 ALERT_COLORS = {
     "deauth_flood": 0xef4444,
@@ -146,6 +151,23 @@ def _send_discord(alert: dict, cfg: dict):
         print(f"[Notifier] Discord request failed: {e}")
 
 
+def _notifier_worker():
+    while True:
+        item = _notif_queue.get()
+        if item is None:
+            break
+        alert, tg, dis = item
+        if tg.get("enabled"):
+            _send_telegram(alert, tg)
+        if dis.get("enabled"):
+            _send_discord(alert, dis)
+        _notif_queue.task_done()
+
+
+_worker_thread = threading.Thread(target=_notifier_worker, daemon=True, name="notifier-worker")
+_worker_thread.start()
+
+
 def track_deauth(alert: dict) -> bool:
     cfg    = config.load()
     mac    = alert.get("mac")
@@ -154,6 +176,9 @@ def track_deauth(alert: dict) -> bool:
     limit  = cfg["thresholds"]["deauth_count"]
 
     if mac not in _deauth_tracker:
+        if len(_deauth_tracker) >= _MAX_DEAUTH_ENTRIES:
+            oldest = min(_deauth_tracker, key=lambda m: _deauth_tracker[m][-1] if _deauth_tracker[m] else 0)
+            del _deauth_tracker[oldest]
         _deauth_tracker[mac] = []
 
     _deauth_tracker[mac] = [t for t in _deauth_tracker[mac] if now - t < window]
@@ -170,11 +195,12 @@ def process(alert: dict):
     if _is_whitelisted(mac):
         return
 
+    notify_type   = alert_type
     should_notify = False
 
     if alert_type == "deauth":
         if track_deauth(alert):
-            alert["type"] = "deauth_flood"
+            notify_type   = "deauth_flood"
             should_notify = True
     elif alert_type in ("evil_twin", "karma"):
         should_notify = True
@@ -189,13 +215,15 @@ def process(alert: dict):
 
     _set_cooldown(mac)
 
+    notif_alert = {**alert, "type": notify_type}
+
     tg  = cfg["notifications"]["telegram"]
     dis = cfg["notifications"]["discord"]
 
-    if tg.get("enabled"):
-        _send_telegram(alert, tg)
-    if dis.get("enabled"):
-        _send_discord(alert, dis)
+    try:
+        _notif_queue.put_nowait((notif_alert, tg, dis))
+    except queue.Full:
+        print(f"[Notifier] Queue full, dropping notification for {mac}.")
 
 
 def test_telegram(cfg: dict) -> bool:

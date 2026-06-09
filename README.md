@@ -98,24 +98,42 @@ Each sensor node performs **edge processing and local aggregation** before publi
 node-sentry/
 ├── nodes/
 │   ├── firmware/
-│   │   └── firmware.ino        # D1 Mini C++ firmware (Arduino)
-│   └── mock_node.py            # simulate a node for testing
+│   │   └── firmware.ino        # D1 Mini C++ firmware
+│   └── mock_node.py            # MQTT simulator for testing
 ├── server/
-│   ├── main.py                 # Flask app + SocketIO + API
+│   ├── main.py                 # Flask app, routes, SocketIO, MQTT wiring
 │   ├── mqtt_client.py          # MQTTClient class
-│   ├── database.py             # SQLite storage with connection pooling
-│   ├── templates/
-│   │   └── index.html          # dashboard HTML
+│   ├── database.py             # SQLite layer - all reads and writes go here
+│   ├── notifier.py             # Telegram and Discord notification engine
+│   ├── config.py               # config.json reader/writer
+│   ├── templates/              # Jinja2 HTML templates
+│   │   ├── base.html
+│   │   ├── dashboard.html
+│   │   ├── alerts.html
+│   │   ├── nodes.html
+│   │   ├── devices.html
+│   │   ├── probes.html
+│   │   ├── settings.html
+│   │   └── api_docs.html
 │   └── static/
-│       ├── css/
-│       │   └── style.css
+│       ├── css/style.css
 │       └── js/
-│           └── dashboard.js
-├── docs/
-├── .env
-├── .gitignore
-├── requirements.txt
-└── README.md
+│           ├── shared.js
+│           ├── dashboard.js
+│           ├── alerts.js
+│           ├── nodes.js
+│           ├── devices.js
+│           ├── probes.js
+│           └── settings.js
+├── mosquitto/
+│   └── mosquitto.conf
+├── backfille_devices.py        # one-time migration: backfill device table from alerts
+├── update_oui.py               # downloads and imports the IEEE OUI database
+├── logging.sh                  # serial / MQTT log viewer
+├── docker-compose.yml
+├── Dockerfile
+├── config.json.example
+└── .env.example
 ```
 
 ---
@@ -149,7 +167,7 @@ git clone https://github.com/amiraliuks/node-sentry
 cd node-sentry
 cp .env.example .env
 # Edit .env and set API_KEY and SECRET_KEY
-cp config.example.json config.json
+cp config.json.example config.json
 ```
 
 ### Run
@@ -228,13 +246,20 @@ The external SMA antenna significantly extends passive monitoring range compared
 
 ## API
 
-All endpoints require an `X-API-Key` header.
+All endpoints require an `X-API-Key` header (or `?api_key=` query param). Interactive docs available at `/api/docs`.
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/alerts` | Paginated alert log. Params: `limit`, `page`, `type`, `node` |
 | GET | `/api/stats` | Alert counts by type |
 | GET | `/api/nodes` | Latest stats snapshot per node |
+| GET | `/api/devices` | Tracked devices with first/last seen, alert counts, SSID history. Params: `limit`, `page` |
+| GET | `/api/config` | Current notification and threshold configuration |
+| POST | `/api/config` | Save updated configuration |
+| POST | `/api/config/test/telegram` | Send a test Telegram message |
+| POST | `/api/config/test/discord` | Send a test Discord embed |
+| GET | `/api/docs` | Interactive API documentation |
+| GET | `/api/openapi.json` | OpenAPI 3.0 spec |
 
 ---
 
@@ -247,13 +272,15 @@ All endpoints require an `X-API-Key` header.
 - [x] Live dashboard with Chart.js visualizations
 - [x] MAC vendor OUI fingerprinting
 - [x] RSSI signal strength color coding
-- [ ] Physical hardware verification on WeMos D1 Mini Pro
-- [ ] C++ firmware - probe logging and deauth detection
-- [ ] MQTT Last Will and Testament for node failure tracking
-- [ ] Webhook notification engine (Telegram + Discord) with cooldown and severity filtering
-- [ ] Whitelist/ignore specific MAC addresses
-- [ ] Dynamic client-side node positioning map using RSSI triangulation
+- [x] Physical hardware verification on WeMos D1 Mini Pro
+- [x] C++ firmware - deauth flood, probe logging, evil twin, and karma detection
+- [x] MQTT Last Will and Testament for node failure tracking
+- [x] Webhook notification engine (Telegram + Discord) with cooldown and severity filtering
+- [x] Whitelist/ignore specific MAC addresses
+- [x] Device tracker - per-MAC history of alert types, SSIDs seen, and nodes reported from
+- [x] Settings page - live configuration of thresholds and notifications from the dashboard
 - [x] Docker Compose packaging for one-command deployment
+- [ ] Dynamic client-side node positioning map using RSSI triangulation
 
 ---
 

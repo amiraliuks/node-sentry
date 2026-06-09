@@ -22,7 +22,7 @@ class MQTTClient:
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message    = self._on_message
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             print(f"[MQTT] Connected to {self.broker}:{self.port}")
             client.subscribe("nodes/#")

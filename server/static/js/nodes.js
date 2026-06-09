@@ -60,6 +60,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Live status update from LWT
   socket.on('node_status', data => {
     status[data.node] = data.status;
+    
+    // Fallback: If we got a status update but no telemetry database metrics yet,
+    // establish the key so renderNodes() knows this identity exists and builds the card.
+    if (!nodes[data.node]) {
+      nodes[data.node] = {
+        node: data.node,
+        uptime: 0,
+        packets_seen: 0,
+        alerts_sent: 0,
+        free_heap: 0,
+        rssi_to_broker: 0
+      };
+    }
+    
     renderNodes();
   });
 

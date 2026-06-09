@@ -10,7 +10,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "server"))
 
-from database import init_db, init_devices_table, upsert_device, get_conn
+from database import init_db, init_devices_table, upsert_device, get_conn, get_vendor
 
 def backfill():
     init_db()
@@ -24,6 +24,8 @@ def backfill():
 
     for i, row in enumerate(rows):
         alert = dict(row)
+        # Match the live path (main.on_alert) so historical devices get a vendor.
+        alert["vendor"] = get_vendor(alert.get("mac"))
         upsert_device(alert)
         if (i + 1) % 100 == 0 or (i + 1) == total:
             print(f"[*] Processed {i + 1}/{total}")

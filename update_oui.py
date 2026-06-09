@@ -11,7 +11,9 @@ import sys
 import urllib.request
 
 OUI_URL = "https://standards-oui.ieee.org/oui/oui.txt"
-DB_PATH = os.path.join(os.path.dirname(__file__), "server", "nodesentry.db")
+# Keep in sync with server/database.py DATA_DIR.
+DB_PATH = os.environ.get("NODESENTRY_DATA_DIR") or os.path.join(os.path.dirname(__file__), "data")
+DB_PATH = os.path.join(DB_PATH, "nodesentry.db")
 
 
 def download_oui(url: str) -> str:
@@ -49,6 +51,7 @@ def parse_oui(raw: str) -> list[tuple[str, str]]:
 
 def store_oui(entries: list[tuple[str, str]], db_path: str):
     print(f"[*] Storing {len(entries):,} entries to {db_path} ...")
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS oui (

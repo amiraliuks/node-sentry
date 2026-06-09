@@ -5,7 +5,12 @@ import os
 from contextlib import contextmanager
 from threading import local
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "nodesentry.db")
+# Store the DB under a data/ directory so Docker can bind-mount the directory
+# (mounting a not-yet-existing file makes Docker create a bogus directory and
+# breaks sqlite). Overridable via NODESENTRY_DATA_DIR.
+DATA_DIR = os.environ.get("NODESENTRY_DATA_DIR") or os.path.join(os.path.dirname(__file__), "..", "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "nodesentry.db")
 
 # ── Thread-local connection pool ──
 _local = local()
@@ -70,8 +75,12 @@ def init_db():
 
 
 # ── Validation ──
-VALID_TYPES = {"deauth", "probe", "evil_twin", "karma"}
-MAX_LIMIT   = 500
+VALID_TYPES       = {"deauth", "probe", "evil_twin", "karma"}
+MAX_LIMIT         = 500
+MAX_DEVICE_SSIDS  = 32   # bounded most-recent window to cap storage amplification
+MAX_DEVICE_NODES  = 16
+MAX_SSID_LEN      = 64
+_TYPE_NO_MATCH    = "\x00__no_match__"   # sentinel: matches no stored row
 
 def _validate_limit(limit: int) -> int:
     if not isinstance(limit, int) or limit < 1:
@@ -79,8 +88,12 @@ def _validate_limit(limit: int) -> int:
     return min(limit, MAX_LIMIT)
 
 def _validate_type(alert_type: str | None) -> str | None:
-    if alert_type and alert_type not in VALID_TYPES:
+    if alert_type is None:
         return None
+    # Unknown but non-empty type must filter to ZERO rows, never silently
+    # fall through to an unfiltered full-table read.
+    if alert_type not in VALID_TYPES:
+        return _TYPE_NO_MATCH
     return alert_type
 
 def _validate_node(node: str | None) -> str | None:
@@ -91,9 +104,11 @@ def _validate_node(node: str | None) -> str | None:
 
 # ── Writes ──
 def insert_alert(payload: dict):
-    known    = {"node", "type", "mac", "ssid", "rssi", "timestamp"}
+    known    = {"node", "type", "mac", "ssid", "rssi", "severity", "timestamp"}
     extra    = {k: v for k, v in payload.items() if k not in known}
-    severity = get_severity(payload.get("type", ""))
+    severity = payload.get("severity")
+    if not isinstance(severity, int):
+        severity = get_severity(payload.get("type", ""))
     with get_conn() as conn:
         conn.execute("""
             INSERT INTO alerts (node, type, mac, ssid, rssi, severity, extra, timestamp)
@@ -238,13 +253,14 @@ def init_devices_table():
 
 
 def upsert_device(payload: dict):
-    import json as _json
     mac    = payload.get("mac")
     if not mac:
         return
     vendor = payload.get("vendor")
     ts     = payload.get("timestamp", int(time.time()))
     ssid   = payload.get("ssid")
+    if isinstance(ssid, str):
+        ssid = ssid[:MAX_SSID_LEN]
     node   = payload.get("node", "unknown")
     atype  = payload.get("type", "unknown")
 
@@ -252,22 +268,26 @@ def upsert_device(payload: dict):
         row = conn.execute("SELECT * FROM devices WHERE mac = ?", (mac,)).fetchone()
         if row:
             row    = dict(row)
-            ssids  = _json.loads(row["ssids"])
-            nodes  = _json.loads(row["nodes"])
-            atypes = _json.loads(row["alert_types"])
+            ssids  = json.loads(row["ssids"])
+            nodes  = json.loads(row["nodes"])
+            atypes = json.loads(row["alert_types"])
             if ssid and ssid not in ssids:
                 ssids.append(ssid)
             if node not in nodes:
                 nodes.append(node)
             atypes[atype] = atypes.get(atype, 0) + 1
+            # Bound the arrays as most-recent windows so a flood of distinct
+            # SSIDs from one MAC can't balloon a single row without limit.
+            ssids = ssids[-MAX_DEVICE_SSIDS:]
+            nodes = nodes[-MAX_DEVICE_NODES:]
             conn.execute("""
                 UPDATE devices
                 SET last_seen=?, alert_count=alert_count+1,
                     ssids=?, nodes=?, alert_types=?,
                     vendor=COALESCE(?,vendor)
                 WHERE mac=?
-            """, (ts, _json.dumps(ssids), _json.dumps(nodes),
-                  _json.dumps(atypes), vendor, mac))
+            """, (ts, json.dumps(ssids), json.dumps(nodes),
+                  json.dumps(atypes), vendor, mac))
         else:
             ssids  = [ssid] if ssid else []
             nodes  = [node]
@@ -277,11 +297,10 @@ def upsert_device(payload: dict):
                     (mac, vendor, first_seen, last_seen, alert_count, ssids, nodes, alert_types)
                 VALUES (?, ?, ?, ?, 1, ?, ?, ?)
             """, (mac, vendor, ts, ts,
-                  _json.dumps(ssids), _json.dumps(nodes), _json.dumps(atypes)))
+                  json.dumps(ssids), json.dumps(nodes), json.dumps(atypes)))
 
 
 def get_devices(limit=200, page=1):
-    import json as _json
     limit  = _validate_limit(limit)
     page   = max(1, page)
     offset = (page - 1) * limit
@@ -294,9 +313,9 @@ def get_devices(limit=200, page=1):
     result = []
     for r in rows:
         d = dict(r)
-        d["ssids"]       = _json.loads(d["ssids"])
-        d["nodes"]       = _json.loads(d["nodes"])
-        d["alert_types"] = _json.loads(d["alert_types"])
+        d["ssids"]       = json.loads(d["ssids"])
+        d["nodes"]       = json.loads(d["nodes"])
+        d["alert_types"] = json.loads(d["alert_types"])
         result.append(d)
     return {
         "page":        page,

@@ -1,5 +1,9 @@
 import threading
-from flask import Flask, render_template, jsonify, request
+import hmac
+import re
+import copy
+import time
+from flask import Flask, render_template, jsonify, request, session
 from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -16,7 +20,18 @@ import notifier
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "change-me-in-production")
+
+# SECRET_KEY signs the session cookie. Never fall back to a shipped constant:
+# generate an ephemeral key if it is unset (sessions just won't survive a restart).
+_secret = os.getenv("SECRET_KEY")
+if not _secret:
+    _secret = os.urandom(32).hex()
+    print("[!] Warning: SECRET_KEY not set - using an ephemeral key (sessions reset on restart)")
+app.config["SECRET_KEY"] = _secret
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Strict",
+)
 
 CORS(app, origins=["http://localhost:5000", "http://127.0.0.1:5000"])
 
@@ -27,26 +42,171 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-socketio = SocketIO(app, cors_allowed_origins=[
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-])
+socketio = SocketIO(
+    app,
+    async_mode="threading",
+    cors_allowed_origins=[
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+    ],
+)
 
 BROKER  = os.getenv("MQTT_BROKER", "localhost")
 PORT    = int(os.getenv("MQTT_PORT", 1883))
 API_KEY = os.getenv("API_KEY", "")
 node_status: dict[str, str] = {}
+_status_lock = threading.Lock()
+
+# Fail closed under a production WSGI server (gunicorn imports this module, so the
+# __main__ guard below never runs). Refuse to serve open /api endpoints unless an
+# explicit non-production dev opt-in is set.
+if __name__ != "__main__" and not API_KEY and os.getenv("NODESENTRY_DEV_MODE") != "1":
+    raise SystemExit(
+        "[FATAL] API_KEY is not set. Refusing to start open /api endpoints under a WSGI server.\n"
+        "        Set API_KEY, or set NODESENTRY_DEV_MODE=1 for an explicit (non-production) open run."
+    )
+
+# --- Input validation (MQTT payloads and config writes are UNTRUSTED) ---
+NODE_RE           = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+MAC_RE            = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+VALID_ALERT_TYPES = {"deauth", "probe", "evil_twin", "karma"}
+MAX_SSID_LEN      = 64
+CONFIG_MASK       = "********"
+PAGE_ENDPOINTS    = {"index", "alerts", "nodes", "probes", "settings", "devices", "api_docs"}
+
+
+def _as_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _valid_node(node):
+    return node if isinstance(node, str) and NODE_RE.match(node) else None
+
+
+def _clean_alert(payload):
+    """Validate/normalize an untrusted MQTT alert payload. Returns a clean dict or None."""
+    if not isinstance(payload, dict):
+        return None
+    atype = payload.get("type")
+    if atype not in VALID_ALERT_TYPES:
+        return None
+    node = _valid_node(payload.get("node"))
+    if not node:
+        return None
+
+    mac  = payload.get("mac")
+    mac  = mac.upper() if isinstance(mac, str) and MAC_RE.match(mac) else None
+    ssid = payload.get("ssid")
+    if ssid is not None:
+        ssid = str(ssid)[:MAX_SSID_LEN]
+
+    clean = {
+        "node":      node,
+        "type":      atype,
+        "mac":       mac,
+        "ssid":      ssid,
+        "rssi":      _as_int(payload.get("rssi"), None),
+        "timestamp": int(time.time()),   # server-authoritative; never trust node clocks
+    }
+    if isinstance(payload.get("count"), (int, float)):
+        clean["count"] = int(payload["count"])
+    for k in ("rogue_bssid", "legit_bssid"):
+        v = payload.get(k)
+        if isinstance(v, str) and MAC_RE.match(v):
+            clean[k] = v.upper()
+    return clean
+
+
+def _clean_stats(payload):
+    """Validate/normalize an untrusted MQTT stats payload. Returns a clean dict or None."""
+    if not isinstance(payload, dict):
+        return None
+    node = _valid_node(payload.get("node"))
+    if not node:
+        return None
+    return {
+        "node":           node,
+        "uptime":         _as_int(payload.get("uptime")),
+        "packets_seen":   _as_int(payload.get("packets_seen")),
+        "alerts_sent":    _as_int(payload.get("alerts_sent")),
+        "free_heap":      _as_int(payload.get("free_heap")),
+        "rssi_to_broker": _as_int(payload.get("rssi_to_broker")),
+        "timestamp":      int(time.time()),
+    }
+
+
+def _clamp_int(value, lo, hi, default):
+    return max(lo, min(hi, _as_int(value, default)))
+
+
+def _redacted_config():
+    """Config for GET /api/config with secrets masked."""
+    cfg = copy.deepcopy(cfg_module.load())
+    tg  = cfg.get("notifications", {}).get("telegram", {})
+    if tg.get("bot_token"):
+        tg["bot_token"] = CONFIG_MASK
+    dc = cfg.get("notifications", {}).get("discord", {})
+    if dc.get("webhook_url"):
+        dc["webhook_url"] = CONFIG_MASK
+    return cfg
+
+
+def _sanitize_config(data):
+    """Build a clean config from only known keys/types; a secret sent back as the
+    mask sentinel means 'keep the stored value'. Returns a dict or None."""
+    if not isinstance(data, dict):
+        return None
+    current = cfg_module.load()
+    out     = copy.deepcopy(cfg_module.DEFAULTS)
+
+    notifs = data.get("notifications") if isinstance(data.get("notifications"), dict) else {}
+    tg_in  = notifs.get("telegram") if isinstance(notifs.get("telegram"), dict) else {}
+    dc_in  = notifs.get("discord")  if isinstance(notifs.get("discord"), dict)  else {}
+    cur_tg = current.get("notifications", {}).get("telegram", {})
+    cur_dc = current.get("notifications", {}).get("discord", {})
+
+    token = str(tg_in.get("bot_token", ""))[:200]
+    out["notifications"]["telegram"]["enabled"]   = bool(tg_in.get("enabled", False))
+    out["notifications"]["telegram"]["bot_token"] = cur_tg.get("bot_token", "") if token == CONFIG_MASK else token
+    out["notifications"]["telegram"]["chat_id"]   = str(tg_in.get("chat_id", ""))[:64]
+
+    webhook = str(dc_in.get("webhook_url", ""))[:300]
+    out["notifications"]["discord"]["enabled"]     = bool(dc_in.get("enabled", False))
+    out["notifications"]["discord"]["webhook_url"] = cur_dc.get("webhook_url", "") if webhook == CONFIG_MASK else webhook
+
+    th = data.get("thresholds") if isinstance(data.get("thresholds"), dict) else {}
+    out["thresholds"]["deauth_count"]          = _clamp_int(th.get("deauth_count"), 1, 1000, 5)
+    out["thresholds"]["deauth_window_seconds"] = _clamp_int(th.get("deauth_window_seconds"), 1, 3600, 60)
+    out["thresholds"]["cooldown_seconds"]      = _clamp_int(th.get("cooldown_seconds"), 1, 86400, 300)
+
+    wl = data.get("whitelist")
+    if isinstance(wl, list):
+        out["whitelist"] = [str(m)[:32] for m in wl if isinstance(m, str)][:256]
+    return out
+
+
+@app.before_request
+def _mark_dashboard_session():
+    # Visiting any dashboard page authenticates the browser for same-origin API
+    # calls via an HttpOnly cookie, so the API key is never exposed to JS/XSS.
+    if request.endpoint in PAGE_ENDPOINTS:
+        session["dashboard"] = True
 
 
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not API_KEY:
-            return f(*args, **kwargs)
+            return f(*args, **kwargs)            # open/dev mode (bound to localhost at startup)
         key = request.headers.get("X-API-Key") or request.args.get("api_key")
-        if key != API_KEY:
-            return jsonify({"error": "Unauthorized", "message": "Invalid or missing API key"}), 401
-        return f(*args, **kwargs)
+        if key and hmac.compare_digest(key, API_KEY):
+            return f(*args, **kwargs)             # server-to-server / CLI client
+        if session.get("dashboard"):
+            return f(*args, **kwargs)             # same-origin browser (HttpOnly cookie)
+        return jsonify({"error": "Unauthorized", "message": "Invalid or missing API key"}), 401
     return decorated
 
 
@@ -64,30 +224,43 @@ def server_error(e):
 
 
 def on_alert(payload):
-    payload["severity"] = get_severity(payload.get("type", ""))
-    insert_alert(payload)
-    payload["vendor"] = get_vendor(payload.get("mac"))
-    upsert_device(payload)
-    notifier.process(payload)
-    socketio.emit("alert", payload)
+    alert = _clean_alert(payload)
+    if alert is None:
+        print("[MQTT] Dropped malformed alert payload")
+        return
+    alert["severity"] = get_severity(alert["type"])
+    insert_alert(alert)
+    alert["vendor"] = get_vendor(alert.get("mac"))
+    upsert_device(alert)
+    notifier.process(alert)
+    socketio.emit("alert", alert)
 
 def on_stats(payload):
-    insert_stats(payload)
-    socketio.emit("stats", payload)
+    stats = _clean_stats(payload)
+    if stats is None:
+        print("[MQTT] Dropped malformed stats payload")
+        return
+    insert_stats(stats)
+    socketio.emit("stats", stats)
 
 
 def on_status(payload):
-    node      = payload.get("node")
-    status    = payload.get("status", "offline")
-    timestamp = payload.get("timestamp", 0)
+    if not isinstance(payload, dict):
+        return
+    node   = _valid_node(payload.get("node"))
+    status = payload.get("status", "offline")
+    if status not in ("online", "offline"):
+        status = "offline"
     if node:
-        node_status[node] = status
+        with _status_lock:
+            node_status[node] = status
         print(f"[STATUS] {node} is {status}")
-        socketio.emit("node_status", {"node": node, "status": status, "timestamp": timestamp})
+        socketio.emit("node_status", {"node": node, "status": status, "timestamp": int(time.time())})
 
 
 def ctx(**kwargs):
-    kwargs.setdefault("api_key", os.getenv("API_KEY", ""))
+    # The API key is no longer templated into pages; the browser authenticates
+    # via the HttpOnly session cookie. Kept as a thin passthrough for routes.
     return kwargs
 
 @app.route("/")
@@ -138,8 +311,10 @@ def api_stats():
 @limiter.limit("60 per minute")
 def api_nodes():
     nodes = get_nodes()
+    with _status_lock:
+        snapshot = dict(node_status)
     for n in nodes:
-        n["status"] = node_status.get(n["node"], "unknown")
+        n["status"] = snapshot.get(n["node"], "unknown")
     return jsonify(nodes)
 
 @app.route("/api/devices")
@@ -154,16 +329,17 @@ def api_devices():
 @require_api_key
 @limiter.limit("30 per minute")
 def api_config_get():
-    return jsonify(cfg_module.load())
+    return jsonify(_redacted_config())
 
 @app.route("/api/config", methods=["POST"])
 @require_api_key
 @limiter.limit("10 per minute")
 def api_config_post():
     data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "Invalid JSON body"}), 400
-    ok = cfg_module.save(data)
+    clean = _sanitize_config(data)
+    if clean is None:
+        return jsonify({"error": "Invalid config body"}), 400
+    ok = cfg_module.save(clean)
     if ok:
         return jsonify({"success": True})
     return jsonify({"error": "Failed to save config"}), 500
@@ -189,7 +365,7 @@ def api_test_discord():
 
 @app.route("/api/docs")
 def api_docs():
-    return render_template("api_docs.html", api_key=os.getenv("API_KEY", ""))
+    return render_template("api_docs.html")
 
 @app.route("/api/openapi.json")
 def openapi_spec():
@@ -219,7 +395,7 @@ def openapi_spec():
                     "parameters": [
                         {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50, "maximum": 500}, "description": "Results per page"},
                         {"name": "page",  "in": "query", "schema": {"type": "integer", "default": 1}, "description": "Page number"},
-                        {"name": "type",  "in": "query", "schema": {"type": "string", "enum": ["deauth", "deauth_flood", "evil_twin", "karma", "probe"]}, "description": "Filter by alert type"},
+                        {"name": "type",  "in": "query", "schema": {"type": "string", "enum": ["deauth", "evil_twin", "karma", "probe"]}, "description": "Filter by alert type"},
                         {"name": "node",  "in": "query", "schema": {"type": "string"}, "description": "Filter by node ID"},
                     ],
                     "responses": {
@@ -254,7 +430,7 @@ def openapi_spec():
                     "summary": "Tracked devices",
                     "description": "Returns all devices tracked by MAC address with first/last seen, alert counts and SSID history.",
                     "parameters": [
-                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 200}},
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 200, "maximum": 500}},
                         {"name": "page",  "in": "query", "schema": {"type": "integer", "default": 1}},
                     ],
                     "responses": {
@@ -310,10 +486,13 @@ def openapi_spec():
     }
     return jsonify(spec)
 
-if __name__ == "__main__":
+def _startup():
+    """Initialize the DB and start the MQTT consumer. Runs once at import so it
+    works under both `python main.py` (dev) and `gunicorn main:app` (production,
+    single worker). With >1 gunicorn worker this would start duplicate MQTT
+    consumers, so the deployment must keep --workers 1."""
     init_db()
     init_devices_table()
-
     mqtt = MQTTClient(
         broker=BROKER,
         port=PORT,
@@ -321,11 +500,23 @@ if __name__ == "__main__":
         on_stats=on_stats,
         on_status=on_status,
     )
+    threading.Thread(target=mqtt.start, daemon=True, name="mqtt-consumer").start()
 
-    mqtt_thread = threading.Thread(target=mqtt.start, daemon=True)
-    mqtt_thread.start()
 
-    print("[*] NodeSentry starting on http://localhost:5000")
+_startup()
+
+
+if __name__ == "__main__":
+    # Development server only. Production runs gunicorn (see Dockerfile), which
+    # imports `app` above and never executes this block.
+    host = "0.0.0.0"
     if not API_KEY:
-        print("[!] Warning: API_KEY not set in .env - endpoints are open (dev mode)")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
+        if os.getenv("NODESENTRY_DEV_MODE") != "1":
+            raise SystemExit(
+                "[FATAL] API_KEY is not set. Refusing to start with open /api endpoints.\n"
+                "        Set API_KEY in .env, or set NODESENTRY_DEV_MODE=1 to run open on localhost only."
+            )
+        host = "127.0.0.1"
+        print("[!] DEV MODE: API auth disabled, binding to 127.0.0.1 only")
+    print(f"[*] NodeSentry starting on http://{host}:5000")
+    socketio.run(app, host=host, port=5000, debug=False, allow_unsafe_werkzeug=True)

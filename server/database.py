@@ -12,7 +12,7 @@ DATA_DIR = os.environ.get("NODESENTRY_DATA_DIR") or os.path.join(os.path.dirname
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "nodesentry.db")
 
-# ── Thread-local connection pool ──
+# Thread-local connection pool
 _local = local()
 
 def _get_conn():
@@ -34,8 +34,7 @@ def get_conn():
         conn.rollback()
         raise
 
-
-# ── Init ──
+# Init
 def init_db():
     with get_conn() as conn:
         conn.execute("""
@@ -73,14 +72,13 @@ def init_db():
             pass
     print("[DB] Database initialized.")
 
-
-# ── Validation ──
+# Validation
 VALID_TYPES       = {"deauth", "probe", "evil_twin", "karma"}
 MAX_LIMIT         = 500
-MAX_DEVICE_SSIDS  = 32   # bounded most-recent window to cap storage amplification
+MAX_DEVICE_SSIDS  = 32 # bounded most-recent window to cap storage amplification
 MAX_DEVICE_NODES  = 16
 MAX_SSID_LEN      = 64
-_TYPE_NO_MATCH    = "\x00__no_match__"   # sentinel: matches no stored row
+_TYPE_NO_MATCH    = "\x00__no_match__" # sentinel: matches no stored row
 
 def _validate_limit(limit: int) -> int:
     if not isinstance(limit, int) or limit < 1:
@@ -101,8 +99,7 @@ def _validate_node(node: str | None) -> str | None:
         return None
     return node
 
-
-# ── Writes ──
+# Writes
 def insert_alert(payload: dict):
     known    = {"node", "type", "mac", "ssid", "rssi", "severity", "timestamp"}
     extra    = {k: v for k, v in payload.items() if k not in known}
@@ -139,8 +136,7 @@ def insert_stats(payload: dict):
             payload.get("timestamp", 0),
         ))
 
-
-# ── Reads ──
+# Reads
 def get_alerts(limit=50, page=1, alert_type=None, node=None):
     limit      = _validate_limit(limit)
     page       = max(1, page)
@@ -202,8 +198,7 @@ def get_nodes():
         """).fetchall()
     return [dict(r) for r in rows]
 
-
-# ── OUI Lookup ──
+# OUI Lookup
 def get_vendor(mac: str) -> str | None:
     """Look up MAC vendor from the OUI table. Returns None if not found."""
     if not mac or len(mac) < 8:
@@ -218,9 +213,6 @@ def get_vendor(mac: str) -> str | None:
     except Exception:
         return None
 
-
-
-
 # Severity scoring
 SEVERITY_SCORES = {
     'probe':        1,
@@ -234,7 +226,6 @@ def get_severity(alert_type: str) -> int:
     return SEVERITY_SCORES.get(alert_type, 1)
 
 # Device tracking
-
 def init_devices_table():
     with get_conn() as conn:
         conn.execute("""
@@ -250,7 +241,6 @@ def init_devices_table():
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen)")
-
 
 def upsert_device(payload: dict):
     mac    = payload.get("mac")
@@ -298,7 +288,6 @@ def upsert_device(payload: dict):
                 VALUES (?, ?, ?, ?, 1, ?, ?, ?)
             """, (mac, vendor, ts, ts,
                   json.dumps(ssids), json.dumps(nodes), json.dumps(atypes)))
-
 
 def get_devices(limit=200, page=1):
     limit  = _validate_limit(limit)

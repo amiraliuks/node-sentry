@@ -33,7 +33,11 @@ on deauth alerts lands in the server's `extra` JSON column.
 
 ## Configure
 
-Edit the **USER CONFIG** block at the top of [`firmware.ino`](firmware.ino):
+Copy the credentials template and fill it in (`credentials.h` is git-ignored):
+
+```bash
+cp credentials.h.example credentials.h
+```
 
 ```cpp
 #define WIFI_SSID    "YOUR_WIFI_SSID"
@@ -43,8 +47,9 @@ Edit the **USER CONFIG** block at the top of [`firmware.ino`](firmware.ino):
 #define NODE_ID      "node1"           // unique per node
 ```
 
-Optionally list networks you own in `LEGIT_APS[]` (SSID + real BSSID) to widen
-evil-twin coverage beyond the AP this node connects to.
+Optionally list networks you own in `LEGIT_APS[]` (SSID + real BSSID) in
+[`firmware.ino`](firmware.ino) to widen evil-twin coverage beyond the AP this
+node connects to.
 
 ## Build & flash
 
@@ -60,23 +65,33 @@ pio device monitor      # 115200 baud
 2. Install **PubSubClient** (Library Manager).
 3. Board: *LOLIN(WEMOS) D1 mini Pro*. Open `firmware.ino`, set config, Upload.
 
-No ArduinoJson needed \u2014 JSON is hand-built with proper escaping so a hostile
-SSID can't corrupt the payload.
+No ArduinoJson needed \u2014 JSON is hand-built and SSIDs are escaped so a hostile
+SSID can't corrupt the JSON payload. (This protects payload *integrity* only;
+the dashboard separately HTML-escapes these fields when rendering them.)
 
 ## Design notes & limitations (read this)
 
-- **Single channel.** The ESP8266 has one radio. Staying associated to your AP
-  (needed to reach the broker) pins it to the AP's channel, so this firmware
-  monitors **only that channel**. That's deliberate: deauth floods and evil
-  twins targeting *your* network happen on *your* channel. Full multi-channel
-  coverage needs channel hopping, which is mutually exclusive with a live MQTT
-  connection on the ESP8266.
+- **Multi-channel, store-and-forward.** The ESP8266 has one radio, so it can't
+  sniff and stay connected to the broker at the same time. This firmware sniffs
+  in promiscuous mode with WiFi disconnected, hopping channels 1-13, and buffers
+  detections in a small in-RAM ring queue. Every ~45 s (`UPLOAD_INTERVAL_MS`) it
+  reconnects WiFi+MQTT for a short window (~15 s, `UPLOAD_WINDOW_MS`) to flush the
+  queued alerts plus a stats sample, then drops back to sniffing. Trade-offs to
+  know:
+    - **Alerts are delayed**, not real-time: an event can wait up to one
+      sniff/upload cycle (~45 s + connect time) before it reaches the dashboard.
+    - **There is a periodic blind window** (~15 s per cycle) while the radio is
+      reconnecting and uploading; management frames during that window are missed.
+    - Channel dwell is ~400 ms (`HOP_MS`), so a very slow deauth flood on a single
+      channel can slip under the per-window threshold.
+  Tune `UPLOAD_INTERVAL_MS`, `UPLOAD_WINDOW_MS`, `HOP_MS`, and the channel range
+  in `firmware.ino` for your environment.
 
-  *Channel-hopping variant (not implemented here):* run promiscuous with WiFi
-  disconnected, hop channels, buffer detections, then periodically reconnect and
-  flush over MQTT. The detection functions in this file are reusable as-is;
-  only the connectivity state machine changes. Ask if you want this version \u2014
-  the trade-off is broader coverage but delayed alerts and online/offline flap.
+- **Node online/offline is best-effort.** The retained `online` status is
+  republished each upload cycle and the broker publishes the retained `offline`
+  LWT only on an *ungraceful* drop. Because the node disconnects gracefully every
+  cycle to go sniff, a node that dies during the (longer) sniff phase keeps a
+  stale `online` status until you notice it stopped reporting stats.
 
 - **The promiscuous callback stays minimal.** It only parses frames and pushes
   compact records into a lock-free ring buffer; all MQTT/JSON/network work runs

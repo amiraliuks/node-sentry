@@ -88,7 +88,7 @@ Each sensor node performs **edge processing and local aggregation** before publi
 - **Evil twin AP detection** - flags new BSSIDs broadcasting a known legitimate SSID
 - **Karma attack detection** - flags devices responding to probe requests for SSIDs they have never beaconed
 - **Hardware OUI Fingerprinting** - the backend parses the first three octets of each MAC address against an OUI prefix table to identify device manufacturers such as Apple, Samsung, Espressif, and Raspberry Pi. Vendor names are displayed inline in the alert feed for faster threat assessment
-- **Node Status and Failure Tracking (LWT)** - each node registers an MQTT Last Will and Testament message on connect. If a node loses power or drops off the network unexpectedly, the broker automatically publishes the LWT payload, and the dashboard flags that node as offline. This distinguishes a clean shutdown from an unexpected failure
+- **Node Status and Failure Tracking (LWT)** - each node registers an MQTT Last Will and Testament on connect and republishes a retained `online` status each upload cycle. If a node drops off the network unexpectedly *while connected*, the broker publishes its retained `offline` LWT and the dashboard flags it offline. Note: because nodes disconnect gracefully between upload cycles to sniff, a node that dies mid-sniff keeps a stale `online` status until it stops reporting stats
 
 ---
 
@@ -147,7 +147,7 @@ node-sentry/
 | Backend | Python, Flask, Flask-SocketIO, paho-mqtt |
 | Database | SQLite with WAL mode |
 | Frontend | HTML / CSS / JS, Chart.js |
-| Auth | API key via request header |
+| Auth | API key header (external clients) + HttpOnly session cookie (browser) |
 | Rate limiting | Flask-Limiter |
 
 ---
@@ -166,9 +166,12 @@ The easiest way to run NodeSentry is with Docker Compose.
 git clone https://github.com/amiraliuks/node-sentry
 cd node-sentry
 cp .env.example .env
-# Edit .env and set API_KEY and SECRET_KEY
-cp config.json.example config.json
+# Edit .env and set API_KEY and SECRET_KEY (both required)
 ```
+
+Notification settings and detection thresholds are configured from the **Settings**
+page in the dashboard and persist in the `nodesentry-data` volume — there is no
+`config.json` to copy. (`config.json.example` documents the schema for reference.)
 
 ### Run
 
@@ -246,7 +249,7 @@ The external SMA antenna significantly extends passive monitoring range compared
 
 ## API
 
-All endpoints require an `X-API-Key` header (or `?api_key=` query param). Interactive docs available at `/api/docs`.
+API endpoints require an `X-API-Key` header (or `?api_key=` query param) when `API_KEY` is set — and the server refuses to start in production with it unset. The dashboard authenticates the browser with an `HttpOnly` session cookie instead, so the key is never exposed to page JavaScript. Interactive docs available at `/api/docs`.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -263,11 +266,32 @@ All endpoints require an `X-API-Key` header (or `?api_key=` query param). Intera
 
 ---
 
+## Security
+
+A few things to know before exposing NodeSentry beyond localhost:
+
+- **Set `API_KEY` and `SECRET_KEY`.** The server refuses to start in production
+  (gunicorn / Docker) when `API_KEY` is unset, so the API is never open by
+  accident. For an explicit local-only open run, set `NODESENTRY_DEV_MODE=1`,
+  which binds to `127.0.0.1`. External/CLI clients authenticate with the
+  `X-API-Key` header; the browser uses an `HttpOnly` session cookie, so the key
+  is never exposed to page JavaScript.
+- **The MQTT broker allows anonymous publish by default** so nodes are
+  zero-config. The backend validates and bounds every payload (a malicious SSID
+  cannot reach the dashboard as script), but anyone who can reach port `1883` can
+  still spoof alerts. On an untrusted network, enable broker authentication +
+  per-node ACLs + TLS — see [`mosquitto/mosquitto.conf`](mosquitto/mosquitto.conf).
+- **Untrusted fields are escaped end to end** — the dashboard HTML-escapes
+  SSIDs/MACs/node IDs, Telegram messages are HTML-escaped, and CSV exports
+  neutralize spreadsheet formula injection.
+
+---
+
 ## Roadmap
 
 - [x] Project architecture and backend pipeline
 - [x] Mock node for hardware-free testing
-- [x] SQLite persistence with WAL mode and connection pooling
+- [x] SQLite persistence with WAL mode and thread-local connections
 - [x] Paginated REST API with API key auth and rate limiting
 - [x] Live dashboard with Chart.js visualizations
 - [x] MAC vendor OUI fingerprinting

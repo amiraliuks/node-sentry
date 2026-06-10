@@ -68,8 +68,6 @@
   </main>
 
   <script>
-    const API_KEY = "{{ api_key }}";
-
     function updateClock() {
       document.getElementById('current-time').textContent = new Date().toLocaleString();
     }
@@ -79,7 +77,7 @@
     const socket = io();
     socket.on('connect', () => {
       document.getElementById('conn-dot').className = 'status-dot connected';
-      fetch('/api/nodes', { headers: { 'X-API-Key': API_KEY } })
+      fetch('/api/nodes')
         .then(r => r.json())
         .then(nodes => {
           const n = nodes.length;
@@ -93,7 +91,7 @@
       document.getElementById('conn-label').textContent = 'Offline';
     });
     socket.on('stats', () => {
-      fetch('/api/nodes', { headers: { 'X-API-Key': API_KEY } })
+      fetch('/api/nodes')
         .then(r => r.json())
         .then(nodes => {
           const n = nodes.length;

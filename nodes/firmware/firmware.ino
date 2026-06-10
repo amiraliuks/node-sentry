@@ -230,7 +230,7 @@ static void enqueue(const OutAlert& a) {
 static bool passCooldown(const uint8_t* mac, uint8_t type, uint32_t windowMs) {
   uint32_t now = millis();
   int      freeIdx = -1, oldestIdx = 0;
-  uint32_t oldest  = now + 1;
+  uint32_t oldestAge = 0;
 
   for (int i = 0; i < MAX_COOLDOWN; i++) {
     if (cdTbl[i].used && cdTbl[i].type == type && macEqual(cdTbl[i].mac, mac)) {
@@ -239,7 +239,10 @@ static bool passCooldown(const uint8_t* mac, uint8_t type, uint32_t windowMs) {
       return true;
     }
     if (!cdTbl[i].used && freeIdx < 0) freeIdx = i;
-    if (cdTbl[i].used && cdTbl[i].ts < oldest) { oldest = cdTbl[i].ts; oldestIdx = i; }
+    if (cdTbl[i].used) {
+      uint32_t age = now - cdTbl[i].ts;   // wrap-safe LRU: rank by unsigned age
+      if (age >= oldestAge) { oldestAge = age; oldestIdx = i; }
+    }
   }
 
   int idx = (freeIdx >= 0) ? freeIdx : oldestIdx;
@@ -276,13 +279,17 @@ static void addLegit(const char* ssid, const uint8_t* bssid) {
 // ---------------------------------------------------------------------------
 
 static KarmaAP* findKarmaAP(const uint8_t* bssid, bool create) {
+  uint32_t now = millis();
   int      freeIdx = -1, oldestIdx = 0;
-  uint32_t oldest  = 0xFFFFFFFF;
+  uint32_t oldestAge = 0;
 
   for (int i = 0; i < MAX_KARMA_AP; i++) {
     if (karmaTbl[i].used && macEqual(karmaTbl[i].bssid, bssid)) return &karmaTbl[i];
     if (!karmaTbl[i].used && freeIdx < 0) freeIdx = i;
-    if (karmaTbl[i].used && karmaTbl[i].ts < oldest) { oldest = karmaTbl[i].ts; oldestIdx = i; }
+    if (karmaTbl[i].used) {
+      uint32_t age = now - karmaTbl[i].ts;   // wrap-safe LRU
+      if (age >= oldestAge) { oldestAge = age; oldestIdx = i; }
+    }
   }
 
   if (!create) return nullptr;
@@ -321,11 +328,13 @@ static void learnBeacon(const uint8_t* bssid, const char* ssid) {
 static void recordProbe(const char* ssid) {
   if (!ssid || !ssid[0]) return;
 
-  int      idx    = 0;
-  uint32_t oldest = 0xFFFFFFFF;
+  uint32_t now = millis();
+  int      idx = 0;
+  uint32_t oldestAge = 0;
   for (int i = 0; i < MAX_RECENT_PROBES; i++) {
     if (!recentProbes[i].used) { idx = i; break; }
-    if (recentProbes[i].ts < oldest) { oldest = recentProbes[i].ts; idx = i; }
+    uint32_t age = now - recentProbes[i].ts;   // wrap-safe LRU
+    if (age >= oldestAge) { oldestAge = age; idx = i; }
   }
 
   recentProbes[idx].used = true;
@@ -349,15 +358,18 @@ static bool ssidRecentlyProbed(const char* ssid) {
 // ---------------------------------------------------------------------------
 
 static void handleDeauth(const uint8_t* src, int8_t rssi) {
-  uint32_t     now      = millis();
-  DeauthEntry* e        = nullptr;
-  int          freeIdx  = -1, oldestIdx = 0;
-  uint32_t     oldest   = 0xFFFFFFFF;
+  uint32_t     now       = millis();
+  DeauthEntry* e         = nullptr;
+  int          freeIdx   = -1, oldestIdx = 0;
+  uint32_t     oldestAge = 0;
 
   for (int i = 0; i < MAX_DEAUTH_SRC; i++) {
     if (deauthTbl[i].used && macEqual(deauthTbl[i].mac, src)) { e = &deauthTbl[i]; break; }
     if (!deauthTbl[i].used && freeIdx < 0) freeIdx = i;
-    if (deauthTbl[i].used && deauthTbl[i].windowStart < oldest) { oldest = deauthTbl[i].windowStart; oldestIdx = i; }
+    if (deauthTbl[i].used) {
+      uint32_t age = now - deauthTbl[i].windowStart;   // wrap-safe LRU
+      if (age >= oldestAge) { oldestAge = age; oldestIdx = i; }
+    }
   }
 
   if (!e) {
@@ -532,20 +544,26 @@ static void publishAlert(const OutAlert& a) {
     NODE_ID, typeName(a.type), mac, (int)a.rssi, (unsigned long)nowEpoch());
   if (n < 0 || n >= (int)sizeof(body)) return;
 
+  // After every accumulation, bail if the buffer is full: otherwise the next
+  // `sizeof(body) - n` would underflow to a huge size_t and snprintf could
+  // write out of bounds.
   if (a.hasSsid) {
     char esc[200];
     jsonEscape(a.ssid, esc, sizeof(esc));
     n += snprintf(body + n, sizeof(body) - n, ",\"ssid\":\"%s\"", esc);
+    if (n < 0 || n >= (int)sizeof(body)) return;
   }
   if (a.hasRogue) {
     char r[18];
     formatMac(a.rogue, r);
     n += snprintf(body + n, sizeof(body) - n, ",\"rogue_bssid\":\"%s\"", r);
+    if (n < 0 || n >= (int)sizeof(body)) return;
   }
   if (a.hasLegit) {
     char l[18];
     formatMac(a.legit, l);
     n += snprintf(body + n, sizeof(body) - n, ",\"legit_bssid\":\"%s\"", l);
+    if (n < 0 || n >= (int)sizeof(body)) return;
   }
   if (a.type == A_DEAUTH) {
     n += snprintf(body + n, sizeof(body) - n, ",\"count\":%u", a.count);

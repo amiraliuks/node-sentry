@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function fmtAlertTypes(types) {
     const entries = Object.entries(types).sort((a, b) => b[1] - a[1]);
-    if (!entries.length) return '—';
+    if (!entries.length) return '-';
     return `<div style="display:flex;flex-direction:column;gap:5px;">
       ${entries.map(([type, count]) => `
         <div style="display:flex;align-items:center;gap:6px;">
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td style="color:var(--text-sub)">${fmtDate(d.first_seen)}</td>
           <td style="color:var(--text-sub)">${fmtDate(d.last_seen)}</td>
           <td><span style="font-family:var(--font-mono);font-weight:600">${Number(d.alert_count) || 0}</span></td>
-          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.map(escapeHtml).join(', ') : '—'}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.map(escapeHtml).join(', ') : '-'}</td>
           <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.nodes.map(escapeHtml).join(', ')}</td>
           <td>${fmtAlertTypes(d.alert_types)}</td>
         </tr>`).join('');

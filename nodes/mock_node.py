@@ -29,7 +29,7 @@ SAMPLE_SSIDS = [
     "Aeroporti_Tirana_Free"
 ]
 
-# LWT payload — broker publishes this automatically if node disconnects unexpectedly
+# LWT payload - broker publishes this automatically if node disconnects unexpectedly
 LWT_TOPIC   = f"nodes/{NODE_ID}/status"
 LWT_PAYLOAD = json.dumps({"node": NODE_ID, "status": "offline", "timestamp": 0})
 

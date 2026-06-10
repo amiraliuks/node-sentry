@@ -88,11 +88,11 @@ Each sensor node performs **edge processing and local aggregation** before publi
 | | |
 |---|---|
 | ![Live alert feed](docs/screenshots/alerts.png) | ![Tracked devices](docs/screenshots/devices.png) |
-| **Alerts** — paginated, filterable, severity-scored feed | **Devices** — per-MAC history, vendor, SSIDs & nodes seen |
+| **Alerts** - paginated, filterable, severity-scored feed | **Devices** - per-MAC history, vendor, SSIDs & nodes seen |
 | ![Node status](docs/screenshots/nodes.png) | ![Interactive API docs](docs/screenshots/api-docs.png) |
-| **Nodes** — live online/offline status & per-node stats | **API docs** — interactive OpenAPI / Swagger reference |
+| **Nodes** - live online/offline status & per-node stats | **API docs** - interactive OpenAPI / Swagger reference |
 | ![Probe log](docs/screenshots/probe-log.png) | ![Settings](docs/screenshots/settings.png) |
-| **Probe log** — devices broadcasting saved network names | **Settings** — live thresholds & notification config |
+| **Probe log** - devices broadcasting saved network names | **Settings** - live thresholds & notification config |
 
 ---
 
@@ -186,7 +186,7 @@ cp .env.example .env
 ```
 
 Notification settings and detection thresholds are configured from the **Settings**
-page in the dashboard and persist in the `nodesentry-data` volume — there is no
+page in the dashboard and persist in the `nodesentry-data` volume - there is no
 `config.json` to copy. (`config.json.example` documents the schema for reference.)
 
 ### Run
@@ -251,7 +251,7 @@ http://localhost:5000
 # Flash firmware to a connected WeMos (auto-detects the serial port)
 ./flash.sh
 
-# Live node logs — choose USB serial or over-the-air MQTT
+# Live node logs - choose USB serial or over-the-air MQTT
 ./logging.sh
 
 # No hardware? Run the mock node instead
@@ -271,7 +271,7 @@ The external SMA antenna significantly extends passive monitoring range compared
 
 ## API
 
-API endpoints require an `X-API-Key` header (or `?api_key=` query param) when `API_KEY` is set — and the server refuses to start in production with it unset. The dashboard authenticates the browser with an `HttpOnly` session cookie instead, so the key is never exposed to page JavaScript. Interactive docs available at `/api/docs`.
+API endpoints require an `X-API-Key` header (or `?api_key=` query param) when `API_KEY` is set - and the server refuses to start in production with it unset. The dashboard authenticates the browser with an `HttpOnly` session cookie instead, so the key is never exposed to page JavaScript. Interactive docs available at `/api/docs`.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -302,8 +302,8 @@ A few things to know before exposing NodeSentry beyond localhost:
   zero-config. The backend validates and bounds every payload (a malicious SSID
   cannot reach the dashboard as script), but anyone who can reach port `1883` can
   still spoof alerts. On an untrusted network, enable broker authentication +
-  per-node ACLs + TLS — see [`mosquitto/mosquitto.conf`](mosquitto/mosquitto.conf).
-- **Untrusted fields are escaped end to end** — the dashboard HTML-escapes
+  per-node ACLs + TLS - see [`mosquitto/mosquitto.conf`](mosquitto/mosquitto.conf).
+- **Untrusted fields are escaped end to end** - the dashboard HTML-escapes
   SSIDs/MACs/node IDs, Telegram messages are HTML-escaped, and CSV exports
   neutralize spreadsheet formula injection.
 

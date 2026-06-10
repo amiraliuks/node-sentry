@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${escapeHtml(a.node)}</td>
         <td>${typeBadge(a.type)}</td>
         <td>${fmtMac(a.mac, a.vendor)}</td>
-        <td>${a.ssid ? escapeHtml(a.ssid) : '—'}</td>
+        <td>${a.ssid ? escapeHtml(a.ssid) : '-'}</td>
         <td>${fmtRssi(a.rssi)}</td>
         <td>${fmtSeverity(a.severity)}</td>
       </tr>`).join('');

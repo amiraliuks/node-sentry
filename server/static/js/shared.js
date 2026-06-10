@@ -29,7 +29,7 @@ function fmtRssi(rssi) {
 
 function fmtTime(ts) {
   const n = Number(ts);
-  if (!Number.isFinite(n) || n <= 0) return '—';
+  if (!Number.isFinite(n) || n <= 0) return '-';
   // Accept both second- and millisecond-epoch timestamps.
   const ms = n > 1e12 ? n : n * 1000;
   return new Date(ms).toLocaleTimeString();
@@ -37,7 +37,7 @@ function fmtTime(ts) {
 
 function fmtDate(ts) {
   const n = Number(ts);
-  if (!Number.isFinite(n) || n <= 0) return '—';
+  if (!Number.isFinite(n) || n <= 0) return '-';
   const ms = n > 1e12 ? n : n * 1000;
   return new Date(ms).toLocaleString();
 }

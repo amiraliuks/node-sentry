@@ -1,5 +1,5 @@
 /*
- * NodeSentry — WeMos D1 Mini Pro (ESP8266) sensor firmware
+ * NodeSentry - WeMos D1 Mini Pro (ESP8266) sensor firmware
  *
  * Passively monitors 802.11 management frames and publishes detected attacks
  * to a Mosquitto broker over MQTT.
@@ -52,7 +52,7 @@ const LegitConfig LEGIT_APS[] = {
 
 #define STATUS_LED  1  // blink LED_BUILTIN on each alert (active-low on D1 mini)
 
-// Fixed table sizes — ESP8266 has ~40 KB usable DRAM
+// Fixed table sizes - ESP8266 has ~40 KB usable DRAM
 #define Q_SIZE              64  // outgoing alert ring, must be power of 2
 #define MAX_DEAUTH_SRC      24
 #define MAX_LEGIT           12
@@ -460,7 +460,7 @@ static void checkEvilTwin(const uint8_t* bssid, const char* ssid, int8_t rssi) {
 
 #if ENABLE_KARMA
 static void checkKarma(const uint8_t* bssid, const char* ssid, int8_t rssi) {
-  // Flag probe-responses for SSIDs the AP never beaconed — likely a karma/MANA attack.
+  // Flag probe-responses for SSIDs the AP never beaconed - likely a karma/MANA attack.
   if (!ssid || !ssid[0]) return;
   if (bssidBeacons(bssid, ssid)) return;
   if (!ssidRecentlyProbed(ssid)) return;

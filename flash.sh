@@ -45,7 +45,7 @@ echo -e "${GREEN}[*] device found at ${PORT}${NC}"
 
 # Free the port if something else has it open
 if command -v fuser &>/dev/null && fuser "$PORT" &>/dev/null; then
-    echo -e "${YELLOW}[!] ${PORT} is held by PID $(fuser "$PORT" 2>/dev/null) — releasing...${NC}"
+    echo -e "${YELLOW}[!] ${PORT} is held by PID $(fuser "$PORT" 2>/dev/null) - releasing...${NC}"
     fuser -k "$PORT" 2>/dev/null
     sleep 0.5
 fi

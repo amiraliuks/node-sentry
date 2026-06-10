@@ -73,7 +73,7 @@ class MQTTClient:
         try:
             self._client.connect(self.broker, self.port, keepalive=60)
         except ConnectionRefusedError:
-            print(f"[MQTT] Could not connect to broker at {self.broker}:{self.port} — is Mosquitto running?")
+            print(f"[MQTT] Could not connect to broker at {self.broker}:{self.port} - is Mosquitto running?")
             raise
         except Exception as e:
             print(f"[MQTT] Connection error: {e}")

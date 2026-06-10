@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
@@ -7,7 +6,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 BAUD=115200
-BROKER_HOST="localhost"   # overridden by MQTT_BROKER in .env if present
+BROKER_HOST="localhost" # gets overridden by MQTT_BROKER in .env if present
 BROKER_PORT=1883
 
 # Read broker config from .env if present

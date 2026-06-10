@@ -154,11 +154,13 @@ static inline void macCopy(uint8_t* d, const uint8_t* s) {
 static void formatMac(const uint8_t* m, char* out) {
   static const char* hx = "0123456789ABCDEF";
   int p = 0;
+  
   for (int i = 0; i < 6; i++) {
     out[p++] = hx[m[i] >> 4];
     out[p++] = hx[m[i] & 0xF];
     if (i < 5) out[p++] = ':';
   }
+
   out[p] = 0;
 }
 
@@ -190,6 +192,7 @@ static void jsonEscape(const char* s, char* out, size_t outSz) {
       out[o++] = c;
     }
   }
+
   out[o] = 0;
 }
 
@@ -209,6 +212,7 @@ static bool extractSSID(const uint8_t* fr, uint16_t frLen, uint16_t start, char*
 
     i += 2 + tlen;
   }
+
   return false;
 }
 
@@ -238,6 +242,7 @@ static bool passCooldown(const uint8_t* mac, uint8_t type, uint32_t windowMs) {
       cdTbl[i].ts = now;
       return true;
     }
+
     if (!cdTbl[i].used && freeIdx < 0) freeIdx = i;
     if (cdTbl[i].used) {
       uint32_t age = now - cdTbl[i].ts;   // wrap-safe LRU: rank by unsigned age
@@ -350,6 +355,7 @@ static bool ssidRecentlyProbed(const char* ssid) {
         && now - recentProbes[i].ts < KARMA_PROBE_WINDOW_MS
         && strcmp(recentProbes[i].ssid, ssid) == 0) return true;
   }
+
   return false;
 }
 
@@ -385,6 +391,7 @@ static void handleDeauth(const uint8_t* src, int8_t rssi) {
     e->windowStart = now;
     e->count       = 0;
   }
+
   e->count++;
 
   if (e->count >= DEAUTH_THRESHOLD && passCooldown(src, A_DEAUTH, DEAUTH_ALERT_COOLDOWN_MS)) {
@@ -440,10 +447,12 @@ static void checkEvilTwin(const uint8_t* bssid, const char* ssid, int8_t rssi) {
     macCopy(a.rogue, bssid);
     strncpy(a.ssid, ssid, 32);
     a.ssid[32] = 0;
+
     if (legitBssid) {
       a.hasLegit = true;
       macCopy(a.legit, legitBssid);
     }
+
     enqueue(a);
   }
 }
@@ -553,21 +562,25 @@ static void publishAlert(const OutAlert& a) {
     n += snprintf(body + n, sizeof(body) - n, ",\"ssid\":\"%s\"", esc);
     if (n < 0 || n >= (int)sizeof(body)) return;
   }
+
   if (a.hasRogue) {
     char r[18];
     formatMac(a.rogue, r);
     n += snprintf(body + n, sizeof(body) - n, ",\"rogue_bssid\":\"%s\"", r);
     if (n < 0 || n >= (int)sizeof(body)) return;
   }
+
   if (a.hasLegit) {
     char l[18];
     formatMac(a.legit, l);
     n += snprintf(body + n, sizeof(body) - n, ",\"legit_bssid\":\"%s\"", l);
     if (n < 0 || n >= (int)sizeof(body)) return;
   }
+
   if (a.type == A_DEAUTH) {
     n += snprintf(body + n, sizeof(body) - n, ",\"count\":%u", a.count);
   }
+
   if (n < 0 || n >= (int)sizeof(body) - 2) return;
 
   body[n++] = '}';
@@ -594,6 +607,7 @@ static void drainQueue() {
 
 static void publishStats() {
   if (!mqtt.connected()) return;
+
   char body[256];
   snprintf(body, sizeof(body),
     "{\"node\":\"%s\",\"uptime\":%lu,\"packets_seen\":%lu,\"alerts_sent\":%lu,"
@@ -605,6 +619,7 @@ static void publishStats() {
     (unsigned long)ESP.getFreeHeap(),
     (int)WiFi.RSSI(),
     (unsigned long)nowEpoch());
+
   mqtt.publish(TOPIC_STATS, body);
 }
 
@@ -631,16 +646,19 @@ static bool connectMqtt() {
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   String cid = String("nodesentry-") + NODE_ID;
   bool ok = mqtt.connect(cid.c_str(), TOPIC_STATUS, 1, true, LWT_PAYLOAD);
+
   if (ok) {
     char online[96];
     snprintf(online, sizeof(online),
       "{\"node\":\"%s\",\"status\":\"online\",\"timestamp\":%lu}",
       NODE_ID, (unsigned long)nowEpoch());
+
     mqtt.publish(TOPIC_STATUS, online, true);
     Serial.println("[MQTT] connected, status=online");
   } else {
     Serial.printf("[MQTT] connect failed, state=%d\n", mqtt.state());
   }
+
   return ok;
 }
 
@@ -659,6 +677,7 @@ static void beginUpload() {
     wifi_promiscuous_enable(0);
     promisc = false;
   }
+
   mqtt.disconnect();
   WiFi.disconnect();
   WiFi.mode(WIFI_STA);
@@ -707,26 +726,31 @@ static void serviceRadio() {
       Serial.println("[WiFi] connecting...");
       WiFi.begin(WIFI_SSID, WIFI_PASS);
     }
+
     return;
   }
 
   if (!mqtt.connected()) {
     if (now - lastMqttTry > 1000) {
       lastMqttTry = now;
+
       if (connectMqtt()) {
         seedApLegit();
         netState = NET_UPLOADING;
       }
     }
+
     return;
   }
 
   mqtt.loop();
   drainQueue();
+
   if (!uploadedStats) {
     publishStats();
     uploadedStats = true;
   }
+
   if (qTail == qHead) finishUpload();
 }
 

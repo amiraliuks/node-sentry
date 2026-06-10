@@ -91,6 +91,8 @@ Each sensor node performs **edge processing and local aggregation** before publi
 | **Alerts** — paginated, filterable, severity-scored feed | **Devices** — per-MAC history, vendor, SSIDs & nodes seen |
 | ![Node status](docs/screenshots/nodes.png) | ![Interactive API docs](docs/screenshots/api-docs.png) |
 | **Nodes** — live online/offline status & per-node stats | **API docs** — interactive OpenAPI / Swagger reference |
+| ![Probe log](docs/screenshots/probe-log.png) | ![Settings](docs/screenshots/settings.png) |
+| **Probe log** — devices broadcasting saved network names | **Settings** — live thresholds & notification config |
 
 ---
 

@@ -7,10 +7,11 @@ __pycache__/
 *.pyd
 .Python
 
-# Database
+# Database + runtime data (DB and config.json live here)
 *.db
 *.sqlite
 *.sqlite3
+data/
 
 # Environment
 .env
@@ -35,5 +36,3 @@ instance/
 
 # Baseline / runtime files
 baseline.json
-server/nodesentry.db-shm
-server/nodesentry.db-wal

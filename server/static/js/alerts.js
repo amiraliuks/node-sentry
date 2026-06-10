@@ -42,10 +42,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       tbody.innerHTML = page.map(a => `
         <tr>
           <td>${fmtTime(a.timestamp)}</td>
-          <td>${a.node}</td>
+          <td>${escapeHtml(a.node)}</td>
           <td>${typeBadge(a.type)}</td>
           <td>${fmtMac(a.mac, a.vendor)}</td>
-          <td>${a.ssid || '—'}</td>
+          <td>${a.ssid ? escapeHtml(a.ssid) : '—'}</td>
           <td>${fmtRssi(a.rssi)}</td>
           <td>${fmtSeverity(a.severity)}</td>
         </tr>`).join('');
@@ -98,16 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderPage();
   }
 
-  function downloadFile(content, filename, mime) {
-    const blob = new Blob([content], { type: mime });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   document.getElementById('search-input').addEventListener('input', onFilterChange);
   document.getElementById('type-filter').addEventListener('change', onFilterChange);
   document.getElementById('node-filter').addEventListener('change', onFilterChange);
@@ -115,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-export-csv').addEventListener('click', () => {
     const data    = getFiltered();
     const headers = ['timestamp', 'node', 'type', 'mac', 'vendor', 'ssid', 'rssi', 'severity'];
-    const rows    = data.map(a => headers.map(h => JSON.stringify(a[h] ?? '')).join(','));
+    const rows    = data.map(a => headers.map(h => csvCell(a[h])).join(','));
     downloadFile([headers.join(','), ...rows].join('\n'), `nodesentry-alerts-${Date.now()}.csv`, 'text/csv');
   });
 
@@ -130,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   try {
-    const res            = await fetch('/api/alerts?limit=500', { headers: { 'X-API-Key': API_KEY } });
+    const res            = await fetch('/api/alerts?limit=500');
     const { alerts: db } = await res.json();
     db.reverse().forEach(a => {
       allAlerts.push(a);
@@ -143,6 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   socket.on('alert', data => {
     allAlerts.push(data);
+    if (allAlerts.length > 5000) allAlerts.splice(0, allAlerts.length - 5000);
     addNode(data.node);
     renderPage();
   });

@@ -27,20 +27,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     grid.innerHTML = entries.map(n => `
       <div class="node-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div class="node-name" style="margin-bottom:0;">◎ ${n.node}</div>
+          <div class="node-name" style="margin-bottom:0;">◎ ${escapeHtml(n.node)}</div>
           ${statusBadge(n.node)}
         </div>
-        <div class="node-stat"><span>Uptime</span><span>${n.uptime}s</span></div>
-        <div class="node-stat"><span>Packets seen</span><span>${n.packets_seen}</span></div>
-        <div class="node-stat"><span>Alerts sent</span><span>${n.alerts_sent}</span></div>
-        <div class="node-stat"><span>Free heap</span><span>${n.free_heap} B</span></div>
+        <div class="node-stat"><span>Uptime</span><span>${Number(n.uptime) || 0}s</span></div>
+        <div class="node-stat"><span>Packets seen</span><span>${Number(n.packets_seen) || 0}</span></div>
+        <div class="node-stat"><span>Alerts sent</span><span>${Number(n.alerts_sent) || 0}</span></div>
+        <div class="node-stat"><span>Free heap</span><span>${Number(n.free_heap) || 0} B</span></div>
         <div class="node-stat"><span>RSSI to broker</span><span>${fmtRssi(n.rssi_to_broker)}</span></div>
       </div>`).join('');
   }
 
   // Load from DB
   try {
-    const res  = await fetch('/api/nodes', { headers: { 'X-API-Key': API_KEY } });
+    const res  = await fetch('/api/nodes');
     const data = await res.json();
     data.forEach(n => {
       nodes[n.node]  = n;

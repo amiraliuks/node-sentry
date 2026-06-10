@@ -33,7 +33,7 @@ SAMPLE_SSIDS = [
 LWT_TOPIC   = f"nodes/{NODE_ID}/status"
 LWT_PAYLOAD = json.dumps({"node": NODE_ID, "status": "offline", "timestamp": 0})
 
-client = mqtt.Client()
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
 
 # Register LWT before connecting
 client.will_set(LWT_TOPIC, LWT_PAYLOAD, qos=1, retain=True)
@@ -63,6 +63,9 @@ try:
             "rssi":      rssi,
             "timestamp": int(time.time()),
         }
+
+        if alert_type == "deauth":
+            payload["count"] = random.randint(1, 12)
 
         if alert_type == "probe":
             payload["ssid"] = random.choice(SAMPLE_SSIDS)

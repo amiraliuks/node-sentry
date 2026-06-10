@@ -1,7 +1,7 @@
 {
   "notifications": {
     "discord": {
-      "enabled": true,
+      "enabled": false,
       "webhook_url": "https://discord.com/api/webhooks/..."
     },
     "telegram": {

@@ -5,11 +5,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let totalPages  = 1;
   const PAGE_SIZE = 50;
 
-  function fmtDate(ts) {
-    if (!ts) return '—';
-    return new Date(ts * 1000).toLocaleString();
-  }
-
   function fmtAlertTypes(types) {
     const entries = Object.entries(types).sort((a, b) => b[1] - a[1]);
     if (!entries.length) return '—';
@@ -17,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${entries.map(([type, count]) => `
         <div style="display:flex;align-items:center;gap:6px;">
           ${typeBadge(type)}
-          <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">${count}</span>
+          <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">${Number(count) || 0}</span>
         </div>`).join('')}
     </div>`;
   }
@@ -51,12 +46,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       tbody.innerHTML = page.map(d => `
         <tr>
           <td>${fmtMac(d.mac, d.vendor)}</td>
-          <td>${d.vendor || '<span style="color:var(--text-muted)">Unknown</span>'}</td>
+          <td>${d.vendor ? escapeHtml(d.vendor) : '<span style="color:var(--text-muted)">Unknown</span>'}</td>
           <td style="color:var(--text-sub)">${fmtDate(d.first_seen)}</td>
           <td style="color:var(--text-sub)">${fmtDate(d.last_seen)}</td>
-          <td><span style="font-family:var(--font-mono);font-weight:600">${d.alert_count}</span></td>
-          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.join(', ') : '—'}</td>
-          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.nodes.join(', ')}</td>
+          <td><span style="font-family:var(--font-mono);font-weight:600">${Number(d.alert_count) || 0}</span></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.ssids.length ? d.ssids.map(escapeHtml).join(', ') : '—'}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-sub)">${d.nodes.map(escapeHtml).join(', ')}</td>
           <td>${fmtAlertTypes(d.alert_types)}</td>
         </tr>`).join('');
     }
@@ -89,16 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function downloadFile(content, filename, mime) {
-    const blob = new Blob([content], { type: mime });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   document.getElementById('search-input').addEventListener('input', () => {
     currentPage = 1;
     renderPage();
@@ -109,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rows    = getFiltered().map(d =>
       headers.map(h => {
         const v = d[h];
-        return JSON.stringify(Array.isArray(v) ? v.join(';') : (v ?? ''));
+        return csvCell(Array.isArray(v) ? v.join(';') : v);
       }).join(',')
     );
     downloadFile([headers.join(','), ...rows].join('\n'), `nodesentry-devices-${Date.now()}.csv`, 'text/csv');
@@ -121,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadDevices() {
     try {
-      const res             = await fetch('/api/devices?limit=500', { headers: { 'X-API-Key': API_KEY } });
+      const res             = await fetch('/api/devices?limit=500');
       const { devices: db } = await res.json();
       devices = db;
       renderPage();
@@ -130,7 +115,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Trailing-edge debounce: a flood of 'alert' events triggers at most one
+  // refetch every 3s instead of one /api/devices request per alert.
+  let reloadTimer = null;
+  function scheduleReload() {
+    if (reloadTimer) return;
+    reloadTimer = setTimeout(() => { reloadTimer = null; loadDevices(); }, 3000);
+  }
+
   loadDevices();
-  socket.on('alert', () => loadDevices());
+  socket.on('alert', scheduleReload);
 
 });

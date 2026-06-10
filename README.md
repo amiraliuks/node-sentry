@@ -2,6 +2,8 @@
 
 A distributed embedded Wi-Fi security monitoring platform. NodeSentry deploys WeMos D1 Mini Pro nodes around a space to passively monitor 802.11 traffic and detect common Wi-Fi attacks in real time, aggregating data to a central dashboard.
 
+![NodeSentry dashboard](docs/screenshots/dashboard.png)
+
 ---
 
 ## Behind the Name
@@ -81,6 +83,17 @@ Each sensor node performs **edge processing and local aggregation** before publi
 
 ---
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Live alert feed](docs/screenshots/alerts.png) | ![Tracked devices](docs/screenshots/devices.png) |
+| **Alerts** — paginated, filterable, severity-scored feed | **Devices** — per-MAC history, vendor, SSIDs & nodes seen |
+| ![Node status](docs/screenshots/nodes.png) | ![Interactive API docs](docs/screenshots/api-docs.png) |
+| **Nodes** — live online/offline status & per-node stats | **API docs** — interactive OpenAPI / Swagger reference |
+
+---
+
 ## Detection Capabilities
 
 - **Deauth flood detection** - counts deauthentication frames per source MAC in a sliding time window and flags sustained floods
@@ -127,8 +140,9 @@ node-sentry/
 │           └── settings.js
 ├── mosquitto/
 │   └── mosquitto.conf
-├── backfille_devices.py        # one-time migration: backfill device table from alerts
+├── backfill_devices.py         # one-time migration: backfill device table from alerts
 ├── update_oui.py               # downloads and imports the IEEE OUI database
+├── flash.sh                    # one-command firmware flash (auto-detects serial port)
 ├── logging.sh                  # serial / MQTT log viewer
 ├── docker-compose.yml
 ├── Dockerfile
@@ -232,7 +246,13 @@ http://localhost:5000
 ### 5. Flash a node or run the mock
 
 ```bash
-# Mock node for testing without hardware
+# Flash firmware to a connected WeMos (auto-detects the serial port)
+./flash.sh
+
+# Live node logs — choose USB serial or over-the-air MQTT
+./logging.sh
+
+# No hardware? Run the mock node instead
 python3 nodes/mock_node.py
 ```
 
@@ -315,6 +335,12 @@ NodeSentry is intended strictly for use on networks you own or have received exp
 This tool operates in passive monitor mode only - it never injects frames, sends deauthentication packets, or actively interferes with any network or device. All development and testing was conducted exclusively on the author's own private network.
 
 The author assumes no responsibility for misuse of this software.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ---
 

@@ -68,7 +68,7 @@ node-sentry/
 │       └── js/                 # Per-page JavaScript modules
 ├── mosquitto/
 │   └── mosquitto.conf
-├── backfille_devices.py        # One-time migration script
+├── backfill_devices.py         # One-time migration script
 ├── update_oui.py               # Downloads IEEE OUI database
 ├── docker-compose.yml
 ├── Dockerfile
